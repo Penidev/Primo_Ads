@@ -1,0 +1,180 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+# A newer push supersedes an in-flight run on the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  # Next 16 and its lint toolchain require Node 20.19+; 22 LTS clears that and
+  # the `eslint-visitor-keys` engine constraint without sitting on a boundary.
+  NODE_VERSION: "22"
+
+jobs:
+  secrets-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so the scan can inspect every commit on the branch.
+          fetch-depth: 0
+
+      - name: Scan git history for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Scan working tree for credential patterns
+        # Dependency-free second layer, also runnable locally via `make scan`.
+        run: python infrastructure/scripts/secret_scan.py
+
+  backend:
+    name: Backend (lint, migrate, test)
+    runs-on: ubuntu-latest
+
+    # Service containers give us the real Postgres and Redis that local Docker
+    # cannot currently provide, so migrations and DB-backed tests actually run.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: primo_test
+          POSTGRES_USER: primo
+          POSTGRES_PASSWORD: primo_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U primo -d primo_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql+asyncpg://primo:primo_test@localhost:5432/primo_test
+      REDIS_URL: redis://localhost:6379/0
+      JWT_SECRET: ci-only-secret-not-used-anywhere-else
+      # Exercises the full pipeline with deterministic fakes: no keys, no cost.
+      PROVIDER_MODE: mock
+      MOCK_MEDIA_DIR: /tmp/primo-mock-media
+      FRONTEND_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install ffmpeg
+        # Required by the stitching pipeline and the mock video renderer.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Install dependencies
+        working-directory: apps/api
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint
+        working-directory: apps/api
+        run: ruff check .
+
+      - name: Verify formatting
+        working-directory: apps/api
+        run: ruff format --check .
+
+      - name: Apply migrations
+        working-directory: apps/api
+        run: alembic upgrade head
+
+      - name: Verify migrations are reversible
+        working-directory: apps/api
+        # A migration that cannot be rolled back is a production trap.
+        run: |
+          alembic downgrade base
+          alembic upgrade head
+
+      - name: Seed baseline data
+        working-directory: apps/api
+        env:
+          ADMIN_SEED_PASSWORD: ci-admin-password-1
+        run: python -m app.scripts.seed
+
+      - name: Run tests
+        working-directory: apps/api
+        run: pytest -v --tb=short
+
+      - name: Health check against a live server
+        working-directory: apps/api
+        run: |
+          uvicorn app.main:app --host 127.0.0.1 --port 8000 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/health > /tmp/health.json; then
+              break
+            fi
+            sleep 2
+          done
+          cat /tmp/health.json
+          # Fail unless both dependencies report healthy.
+          grep -q '"database": "up"' /tmp/health.json
+          grep -q '"redis": "up"' /tmp/health.json
+
+  frontend:
+    name: Frontend (lint, types, test, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Type check
+        # `npm run` resolves the pinned local TypeScript; `npx tsc` can fetch an
+        # unrelated package of the same name.
+        working-directory: apps/web
+        run: npm run typecheck
+
+      - name: Lint
+        working-directory: apps/web
+        run: npm run lint
+
+      - name: Unit tests
+        working-directory: apps/web
+        run: npm test
+
+      - name: Build
+        working-directory: apps/web
+        run: npm run build

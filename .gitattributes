@@ -1,0 +1,38 @@
+# Normalise line endings so the repository always stores LF.
+#
+# Without this, committing from Windows stores CRLF, which breaks two things on
+# Linux CI: multi-line `run:` blocks in GitHub Actions fail under bash, and every
+# file appears modified when checked out on another platform.
+* text=auto eol=lf
+
+# Files that must keep LF regardless of platform.
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+Makefile text eol=lf
+Dockerfile text eol=lf
+*.mako text eol=lf
+
+# Windows-only scripts keep CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Treat these as binary: never diff, never convert.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.mp4 binary
+*.mov binary
+*.webm binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.pdf binary
+*.zip binary
+
+# Generated lockfile: keep it in the repo but exclude from diffs and language stats.
+package-lock.json -diff linguist-generated=true

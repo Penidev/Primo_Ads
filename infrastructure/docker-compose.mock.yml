@@ -1,0 +1,30 @@
+# Mock-provider overlay.
+#
+# Runs the full stack with deterministic in-process fakes instead of real
+# providers: no API keys, no spend, and the entire pipeline still executes
+# (script -> assets -> video -> stitch).
+#
+# Usage:
+#   docker compose -f infrastructure/docker-compose.yml \
+#                  -f infrastructure/docker-compose.mock.yml up -d
+#
+# Or: make dev-mock
+
+services:
+  api:
+    environment:
+      PROVIDER_MODE: mock
+      MOCK_MEDIA_DIR: /mock-media
+    volumes:
+      - mock_media:/mock-media
+
+  worker:
+    environment:
+      PROVIDER_MODE: mock
+      MOCK_MEDIA_DIR: /mock-media
+    volumes:
+      # Shared with the API so the worker can stitch clips the API produced.
+      - mock_media:/mock-media
+
+volumes:
+  mock_media:
