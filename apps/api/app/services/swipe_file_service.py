@@ -30,7 +30,6 @@ from app.utils.blueprint_prompt import (
 from app.utils.prompt_builder import extract_json_object
 from app.utils.uploads import build_blueprint_key, validate_video
 
-
 logger = logging.getLogger(__name__)
 
 
