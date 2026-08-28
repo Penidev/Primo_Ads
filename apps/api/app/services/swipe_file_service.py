@@ -9,6 +9,7 @@ generation until a human has signed it off (Requirement 6.3, 6.4).
 """
 
 import json
+import logging
 import uuid
 from collections import Counter
 from typing import Any
@@ -28,6 +29,9 @@ from app.utils.blueprint_prompt import (
 )
 from app.utils.prompt_builder import extract_json_object
 from app.utils.uploads import build_blueprint_key, validate_video
+
+
+logger = logging.getLogger(__name__)
 
 
 class BlueprintAnalysisError(Exception):
@@ -193,8 +197,17 @@ class SwipeFileService:
         if self.storage is not None and blueprint.source_video_url:
             try:
                 await self.storage.delete(blueprint.source_video_url)
-            except Exception:  # noqa: BLE001 - proceed with row removal regardless
-                pass
+            except Exception:
+                # The row is removed regardless, but a failed delete leaves an
+                # orphaned object that costs money and outlives its retention
+                # window, so it must be traceable rather than silent.
+                logger.warning(
+                    "Could not delete stored source video %s for blueprint %s; "
+                    "the object may be orphaned.",
+                    blueprint.source_video_url,
+                    blueprint.id,
+                    exc_info=True,
+                )
         await self.db.delete(blueprint)
         await self.db.commit()
 

@@ -15,10 +15,10 @@ layered on later without changing callers.
 
 import re
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 
-class ModerationCategory(str, Enum):
+class ModerationCategory(StrEnum):
     REAL_PERSON = "real_person_likeness"
     SEXUAL = "sexual_content"
     VIOLENCE = "graphic_violence"
@@ -30,7 +30,7 @@ class ModerationCategory(str, Enum):
     MINOR_SAFETY = "minor_safety"
 
 
-class ModerationDecision(str, Enum):
+class ModerationDecision(StrEnum):
     ALLOW = "allow"
     FLAG = "flag"   # proceed, but record for review
     BLOCK = "block"  # refuse outright

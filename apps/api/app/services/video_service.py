@@ -15,12 +15,12 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adapters.factory import get_video_adapter
 from app.adapters.video.base import (
     JobState,
     VideoGenConfig,
     VideoProviderError,
 )
-from app.adapters.factory import get_video_adapter
 from app.models import GenerationJob, Project, Scene, VideoModel
 from app.services.credit_service import CreditService
 from app.utils.video_prompt_compiler import compile_prompt
@@ -92,7 +92,11 @@ class VideoService:
         resolutions = model.supported_resolutions or ["1080p"]
         resolution = "1080p" if "1080p" in resolutions else resolutions[0]
 
-        references = list(scene.reference_image_urls or []) if model.supports_image_reference else []
+        references = (
+            list(scene.reference_image_urls or [])
+            if model.supports_image_reference
+            else []
+        )
 
         return VideoGenConfig(
             model_id=model.model_id or model.slug,

@@ -97,7 +97,12 @@ def upgrade() -> None:
         sa.Column("unit", sa.String(50), nullable=True),
         sa.Column("is_enabled", sa.Boolean(), nullable=False, server_default=sa.true()),
         sa.Column("notes", sa.Text(), nullable=True),
-        sa.Column("updated_by", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True),
+        sa.Column(
+            "updated_by",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("users.id"),
+            nullable=True,
+        ),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
@@ -139,7 +144,12 @@ def upgrade() -> None:
     op.create_table(
         "subscriptions",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column(
+            "user_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("users.id"),
+            nullable=False,
+        ),
         sa.Column("tier", sa.String(50), nullable=False),
         sa.Column("status", sa.String(50), nullable=False),
         sa.Column("gateway", sa.String(50), nullable=False),
@@ -165,8 +175,18 @@ def upgrade() -> None:
         sa.Column("supported_resolutions", postgresql.ARRAY(sa.String()), nullable=True),
         sa.Column("supported_aspect_ratios", postgresql.ARRAY(sa.String()), nullable=True),
         sa.Column("supports_audio", sa.Boolean(), nullable=False, server_default=sa.false()),
-        sa.Column("supports_image_reference", sa.Boolean(), nullable=False, server_default=sa.false()),
-        sa.Column("supports_video_extension", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column(
+            "supports_image_reference",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.false(),
+        ),
+        sa.Column(
+            "supports_video_extension",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.false(),
+        ),
         sa.Column("cost_per_second_usd", sa.Numeric(6, 4), nullable=True),
         sa.Column("credit_multiplier", sa.Numeric(4, 2), nullable=False, server_default="1.0"),
         sa.Column("is_enabled", sa.Boolean(), nullable=False, server_default=sa.true()),
@@ -282,8 +302,18 @@ def upgrade() -> None:
     op.create_table(
         "generation_jobs",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("project_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("projects.id"), nullable=True),
-        sa.Column("scene_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("scenes.id"), nullable=True),
+        sa.Column(
+            "project_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("projects.id"),
+            nullable=True,
+        ),
+        sa.Column(
+            "scene_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("scenes.id"),
+            nullable=True,
+        ),
         sa.Column("job_type", sa.String(50), nullable=False),
         sa.Column("status", sa.String(50), nullable=False, server_default="queued"),
         sa.Column("provider", sa.String(50), nullable=True),
@@ -306,7 +336,12 @@ def upgrade() -> None:
         sa.Column("key", sa.String(100), nullable=False, unique=True),
         sa.Column("value", postgresql.JSONB(), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("updated_by", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True),
+        sa.Column(
+            "updated_by",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("users.id"),
+            nullable=True,
+        ),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )

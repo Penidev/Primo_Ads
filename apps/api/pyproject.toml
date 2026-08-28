@@ -28,7 +28,9 @@ dependencies = [
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
-    "ruff>=0.8",
+    # Pinned deliberately. A floating linter means a new ruff release can fail CI
+    # on a codebase that has not changed, which is what happened on the first run.
+    "ruff==0.16.5",
 ]
 
 [tool.ruff]
@@ -41,6 +43,24 @@ ignore = ["S101"]  # allow assert in tests
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S105", "S106"]  # allow hardcoded test secrets
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency injection puts calls in argument defaults by design:
+# `db: AsyncSession = Depends(get_db)`. B008 exists to catch a genuine bug — a
+# mutable default evaluated once and shared across calls — which these are not,
+# since FastAPI re-resolves them per request. Listing them here keeps B008 active
+# for real cases instead of silencing the rule wholesale.
+extend-immutable-calls = [
+    "fastapi.Body",
+    "fastapi.Cookie",
+    "fastapi.Depends",
+    "fastapi.File",
+    "fastapi.Form",
+    "fastapi.Header",
+    "fastapi.Path",
+    "fastapi.Query",
+    "fastapi.Security",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

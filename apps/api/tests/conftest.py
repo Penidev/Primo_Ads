@@ -13,7 +13,6 @@ and run anywhere.
 import uuid
 from collections.abc import AsyncGenerator
 
-import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 

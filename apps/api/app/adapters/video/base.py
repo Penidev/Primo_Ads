@@ -7,10 +7,10 @@ touching the pipeline or the frontend (ARCHITECTURE.md Module 6).
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 
-class JobState(str, Enum):
+class JobState(StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
     COMPLETED = "completed"

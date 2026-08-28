@@ -15,11 +15,11 @@ from app.schemas.script import (
     ScriptCostPreview,
     ScriptGenerateRequest,
 )
+from app.services import analytics_service as analytics
 from app.services.credit_service import (
     InsufficientCreditsError,
     PricingNotConfiguredError,
 )
-from app.services import analytics_service as analytics
 from app.services.project_service import ProjectService
 from app.services.script_service import (
     ContentRefusedError,

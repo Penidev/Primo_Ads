@@ -16,7 +16,6 @@ from app.config import settings
 from app.services.monitoring_service import capture_exception, init_monitoring
 from app.utils.tokens import TokenError, decode_token
 
-
 MAX_REQUEST_BYTES = 25 * 1024 * 1024  # 25 MB hard ceiling for any request body
 
 

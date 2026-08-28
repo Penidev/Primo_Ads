@@ -1,5 +1,6 @@
 """Video generation endpoints."""
 
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -24,6 +25,8 @@ from app.services.project_service import ProjectService
 from app.services.video_service import VideoGenerationError, VideoService
 from app.utils.rate_limit import GENERATION_LIMIT, rate_limited
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/projects/{project_id}/generation", tags=["generation"])
 
 MAX_CONCURRENT_PROJECTS = 3
@@ -39,8 +42,16 @@ def _enqueue_polling(project_id: uuid.UUID) -> None:
         from app.workers.video_tasks import poll_project
 
         poll_project.delay(str(project_id))
-    except Exception:  # noqa: BLE001 - broker unavailable must not fail the request
-        pass
+    except Exception:
+        # Deliberately swallowed: the scenes are already submitted, so failing the
+        # request would be wrong. Logged as a warning because a broker that is
+        # persistently down means nothing gets stitched without a manual poll.
+        logger.warning(
+            "Could not enqueue polling for project %s; falling back to on-demand "
+            "status polling.",
+            project_id,
+            exc_info=True,
+        )
 
 
 async def _load_owned(project_id: uuid.UUID, user: User, db: AsyncSession) -> Project:

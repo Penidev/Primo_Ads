@@ -105,7 +105,11 @@ class MockLLMAdapter(LLMAdapter):
                     "lighting": "Soft key with a controlled falloff",
                     "audio_sfx": "Restrained ambience with a single accent hit",
                     "graphics_overlay": None,
-                    "brand_elements": f"{brand} appears in the final beat" if index == scene_count - 1 else None,
+                    "brand_elements": (
+                        f"{brand} appears in the final beat"
+                        if index == scene_count - 1
+                        else None
+                    ),
                     "video_prompt": (
                         f"{_CAMERA[(seed + index) % len(_CAMERA)]} of a scene "
                         f"establishing {product}. Soft key lighting, cool graded "

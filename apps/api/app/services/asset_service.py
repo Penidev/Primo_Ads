@@ -9,6 +9,7 @@ Credits are charged per generated image, priced from `action_pricing`. User
 uploads are free.
 """
 
+import logging
 import uuid
 from decimal import Decimal
 from typing import Any
@@ -25,6 +26,8 @@ from app.utils.image_prompt_builder import (
     build_character_sheet_prompt,
 )
 from app.utils.uploads import build_asset_key, sanitise_image
+
+logger = logging.getLogger(__name__)
 
 ASSET_ACTION_KEY = "asset_image"
 CHARACTER_ASSET_TYPE = "character"
@@ -310,8 +313,16 @@ class AssetService:
             if isinstance(first, str) and first:
                 try:
                     return await self.storage.signed_url(first)
-                except Exception:  # noqa: BLE001 - fall through to generation
-                    pass
+                except Exception:
+                    # Falls through to generating a synthetic sheet. Logged because
+                    # the user supplied a character and we are silently not using
+                    # it, which is surprising behaviour worth being able to trace.
+                    logger.warning(
+                        "Could not sign uploaded character key for project %s; "
+                        "generating a synthetic character sheet instead.",
+                        project.id,
+                        exc_info=True,
+                    )
 
         image = self._require_image()
         prompt = build_character_sheet_prompt(

@@ -107,7 +107,9 @@ jobs:
 
       - name: Verify formatting
         working-directory: apps/api
-        run: ruff format --check .
+        # `--diff` fails the same as `--check` but prints the exact changes it
+        # wants, which makes the failure actionable from the log alone.
+        run: ruff format --diff .
 
       - name: Apply migrations
         working-directory: apps/api

@@ -9,9 +9,9 @@ import pytest
 from app.services.moderation_service import (
     ModerationCategory,
     ModerationDecision,
+    merge,
     moderate_payload,
     moderate_text,
-    merge,
 )
 
 

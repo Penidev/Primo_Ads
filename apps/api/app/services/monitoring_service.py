@@ -32,8 +32,10 @@ EVENT_RATE_LIMIT_TRIPPED = "abuse.rate_limit_tripped"
 EVENT_UNUSUAL_SPEND = "abuse.unusual_spend"
 EVENT_ADMIN_ACTION = "admin.sensitive_action"
 EVENT_PROVIDER_FAILURE = "provider.failure"
-EVENT_PASSWORD_RESET_REQUESTED = "auth.password_reset_requested"
-EVENT_PASSWORD_RESET_COMPLETED = "auth.password_reset_completed"
+# noqa on both: these are event-name constants, not credentials. S105 keys off the
+# word "PASSWORD" in the identifier.
+EVENT_PASSWORD_RESET_REQUESTED = "auth.password_reset_requested"  # noqa: S105
+EVENT_PASSWORD_RESET_COMPLETED = "auth.password_reset_completed"  # noqa: S105
 
 SEVERITY_INFO = "info"
 SEVERITY_WARNING = "warning"
