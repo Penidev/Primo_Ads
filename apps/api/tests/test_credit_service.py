@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 
 from app.models import ActionPricing, CreditTransaction, PlatformSetting, VideoModel
 from app.services.credit_service import (
+    CREDIT_USD_RATIO_KEY,
     CreditService,
     InsufficientCreditsError,
     PricingNotConfiguredError,
@@ -18,16 +19,47 @@ from app.services.credit_service import (
 pytestmark = pytest.mark.asyncio
 
 
+# These helpers upsert rather than insert. CI runs the seed script before the
+# suite, so baseline pricing rows and the credit ratio already exist; a plain
+# insert hits the unique constraint. A seeded database is also the realistic
+# condition, so tests should not depend on an empty one.
+
+
 async def _pricing(db, action_key: str, credits: str) -> None:
-    db.add(
-        ActionPricing(
-            action_key=action_key,
-            display_name=action_key,
-            base_credits=Decimal(credits),
-            unit="per_generation",
-            is_enabled=True,
+    existing = await db.scalar(select(ActionPricing).where(ActionPricing.action_key == action_key))
+    if existing is None:
+        db.add(
+            ActionPricing(
+                action_key=action_key,
+                display_name=action_key,
+                base_credits=Decimal(credits),
+                unit="per_generation",
+                is_enabled=True,
+            )
         )
+    else:
+        existing.base_credits = Decimal(credits)
+        existing.is_enabled = True
+    await db.flush()
+
+
+async def _ratio(db, usd_per_credit: float | None) -> None:
+    """Set the credit-to-USD ratio, or remove it entirely when None."""
+    existing = await db.scalar(
+        select(PlatformSetting).where(PlatformSetting.key == CREDIT_USD_RATIO_KEY)
     )
+    if usd_per_credit is None:
+        if existing is not None:
+            await db.delete(existing)
+    elif existing is None:
+        db.add(
+            PlatformSetting(
+                key=CREDIT_USD_RATIO_KEY,
+                value={"usd_per_credit": usd_per_credit},
+            )
+        )
+    else:
+        existing.value = {"usd_per_credit": usd_per_credit}
     await db.flush()
 
 
@@ -81,21 +113,19 @@ class TestPricing:
             await CreditService(db).video_scene_cost("off-model", scene_count=1)
 
     async def test_usd_ratio_defaults_when_unset(self, db):
+        # The setting must be removed first. The seed writes 0.50, which happens
+        # to equal DEFAULT_USD_PER_CREDIT, so without this the assertion would
+        # pass while never exercising the fallback it claims to test.
+        await _ratio(db, None)
         assert await CreditService(db).usd_per_credit() == Decimal("0.50")
 
     async def test_usd_ratio_reads_platform_setting(self, db):
-        db.add(
-            PlatformSetting(
-                key="credit_usd_ratio",
-                value={"usd_per_credit": 0.25},
-            )
-        )
-        await db.flush()
+        # Deliberately not 0.50, so this cannot pass on the default.
+        await _ratio(db, 0.25)
         assert await CreditService(db).usd_per_credit() == Decimal("0.25")
 
     async def test_quote_usd_uses_ratio(self, db):
-        db.add(PlatformSetting(key="credit_usd_ratio", value={"usd_per_credit": 0.5}))
-        await db.flush()
+        await _ratio(db, 0.5)
         assert await CreditService(db).quote_usd(Decimal("30")) == Decimal("15.00")
 
 
@@ -130,15 +160,17 @@ class TestDeduction:
         await service.grant(seeded_user.id, Decimal("10"), transaction_type="purchase")
         await service.deduct(seeded_user.id, Decimal("3"), transaction_type="script_generation")
 
-        rows = list(
-            await db.scalars(
-                select(CreditTransaction)
-                .where(CreditTransaction.user_id == seeded_user.id)
-                .order_by(CreditTransaction.created_at)
+        # Selected by transaction_type, not by position. Postgres `now()` is the
+        # transaction timestamp, so rows written in one transaction share a
+        # created_at and cannot be ordered by it.
+        deduction = await db.scalar(
+            select(CreditTransaction).where(
+                CreditTransaction.user_id == seeded_user.id,
+                CreditTransaction.transaction_type == "script_generation",
             )
         )
-        assert Decimal(str(rows[-1].balance_after)) == Decimal("7")
-        assert Decimal(str(rows[-1].amount)) == Decimal("-3")
+        assert Decimal(str(deduction.balance_after)) == Decimal("7")
+        assert Decimal(str(deduction.amount)) == Decimal("-3")
 
     async def test_overspend_is_rejected(self, db, seeded_user):
         service = CreditService(db)
