@@ -2,7 +2,7 @@
 
 This is the part of rate limiting that is easy to get wrong and expensive to get
 wrong: if the identity can be forged, the limit does nothing on exactly the
-endpoints that need it most — login, registration, password reset — because those
+endpoints that need it most â€” login, registration, password reset â€” because those
 have no authenticated user id to bucket by yet.
 
 X-Forwarded-For is appended to by each proxy, so its left-most entry is supplied
@@ -13,7 +13,7 @@ import pytest
 from starlette.requests import Request
 
 from app.config import settings
-from app.utils.rate_limit import _client_ip, _identity
+from app.utils.rate_limit import _identity, resolve_client_ip
 
 SOCKET_IP = "203.0.113.10"  # the peer the app actually sees
 REAL_CLIENT = "198.51.100.7"  # the browser, per a trusted proxy
@@ -63,33 +63,33 @@ class TestNoProxyConfigured:
 
     def test_socket_peer_is_used(self, proxy_depth):
         proxy_depth(0)
-        assert _client_ip(make_request()) == SOCKET_IP
+        assert resolve_client_ip(make_request()) == SOCKET_IP
 
     def test_forwarded_header_is_ignored_entirely(self, proxy_depth):
         proxy_depth(0)
         request = make_request(forwarded=f"{FORGED}, {PROXY_ONE}")
-        assert _client_ip(request) == SOCKET_IP
+        assert resolve_client_ip(request) == SOCKET_IP
 
     def test_missing_client_degrades_to_a_constant(self, proxy_depth):
         proxy_depth(0)
-        assert _client_ip(make_request(socket_ip=None)) == "unknown"
+        assert resolve_client_ip(make_request(socket_ip=None)) == "unknown"
 
 
 class TestBehindOneProxy:
     def test_honest_chain_yields_the_client(self, proxy_depth):
         proxy_depth(1)
-        assert _client_ip(make_request(forwarded=REAL_CLIENT)) == REAL_CLIENT
+        assert resolve_client_ip(make_request(forwarded=REAL_CLIENT)) == REAL_CLIENT
 
     def test_forged_entry_does_not_win(self, proxy_depth):
         """The proxy appends the true peer, so the forgery sits to its left."""
         proxy_depth(1)
         request = make_request(forwarded=f"{FORGED}, {REAL_CLIENT}")
-        assert _client_ip(request) == REAL_CLIENT
+        assert resolve_client_ip(request) == REAL_CLIENT
 
     def test_many_forged_entries_do_not_win(self, proxy_depth):
         proxy_depth(1)
         chain = ", ".join([FORGED] * 20 + [REAL_CLIENT])
-        assert _client_ip(make_request(forwarded=chain)) == REAL_CLIENT
+        assert resolve_client_ip(make_request(forwarded=chain)) == REAL_CLIENT
 
 
 class TestBehindTwoProxies:
@@ -98,19 +98,19 @@ class TestBehindTwoProxies:
     def test_honest_chain_yields_the_client(self, proxy_depth):
         proxy_depth(2)
         request = make_request(forwarded=f"{REAL_CLIENT}, {PROXY_ONE}")
-        assert _client_ip(request) == REAL_CLIENT
+        assert resolve_client_ip(request) == REAL_CLIENT
 
     def test_forged_entry_does_not_win(self, proxy_depth):
         proxy_depth(2)
         request = make_request(forwarded=f"{FORGED}, {REAL_CLIENT}, {PROXY_ONE}")
-        assert _client_ip(request) == REAL_CLIENT
+        assert resolve_client_ip(request) == REAL_CLIENT
 
 
 class TestUntrustworthyInput:
     def test_chain_shorter_than_configured_depth_falls_back(self, proxy_depth):
         """A request that skipped the proxies must not be believed."""
         proxy_depth(2)
-        assert _client_ip(make_request(forwarded=FORGED)) == SOCKET_IP
+        assert resolve_client_ip(make_request(forwarded=FORGED)) == SOCKET_IP
 
     @pytest.mark.parametrize(
         "value",
@@ -125,11 +125,11 @@ class TestUntrustworthyInput:
     def test_non_ip_values_fall_back(self, proxy_depth, value):
         """Also keeps junk out of the Redis key the bucket is stored under."""
         proxy_depth(1)
-        assert _client_ip(make_request(forwarded=value)) == SOCKET_IP
+        assert resolve_client_ip(make_request(forwarded=value)) == SOCKET_IP
 
     def test_ipv6_is_accepted(self, proxy_depth):
         proxy_depth(1)
-        assert _client_ip(make_request(forwarded="2001:db8::1")) == "2001:db8::1"
+        assert resolve_client_ip(make_request(forwarded="2001:db8::1")) == "2001:db8::1"
 
 
 class TestIdentity:
@@ -149,3 +149,26 @@ class TestIdentity:
         first = _identity(make_request(forwarded=f"{FORGED}, {REAL_CLIENT}"))
         second = _identity(make_request(forwarded=f"8.8.8.8, {REAL_CLIENT}"))
         assert first == second == f"ip:{REAL_CLIENT}"
+
+
+class TestBucketKeyIntegrity:
+    """The resolved value ends up inside a Redis key, so it has to stay clean."""
+
+    def test_resolved_value_is_always_an_ip_or_the_constant(self, proxy_depth):
+        proxy_depth(1)
+        hostile = [
+            "ratelimit:auth:ip:1.2.3.4",  # attempts to collide with another key
+            "1.2.3.4\r\nSET foo bar",  # CRLF injection
+            "1.2.3.4 1.2.3.5",
+            "*",
+        ]
+        for value in hostile:
+            resolved = resolve_client_ip(make_request(forwarded=value))
+            assert resolved == SOCKET_IP, value
+
+    def test_bucket_key_shape_is_stable(self, proxy_depth):
+        """Guards the format the Redis key is built from."""
+        proxy_depth(1)
+        identity = _identity(make_request(forwarded=REAL_CLIENT))
+        assert identity == f"ip:{REAL_CLIENT}"
+        assert "\n" not in identity and "\r" not in identity and " " not in identity

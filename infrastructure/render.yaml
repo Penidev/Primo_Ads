@@ -34,12 +34,19 @@ services:
       # nobody has to infer it.
       - key: PROVIDER_MODE
         value: live
-      # Vercel edge + Render's load balancer. Rate limiting counts back from the
-      # right of X-Forwarded-For by this many hops. Verify against a real request
-      # before trusting it: too high lets a caller forge their own rate-limit
-      # bucket.
+      # Starts at 0, which ignores X-Forwarded-For entirely and buckets by the
+      # socket peer. That under-counts (several callers may share a bucket) but
+      # cannot be forged.
+      #
+      # Do not raise this to a guessed number. Too high is the exploitable
+      # direction: with depth 2 behind a single proxy, a caller who sends their
+      # own X-Forwarded-For lands at the index we read, and picks their own
+      # rate-limit bucket.
+      #
+      # Measure it instead — GET /api/v1/admin/diagnostics/client-ip reports the
+      # observed chain and the depth it implies.
       - key: TRUSTED_PROXY_COUNT
-        value: "2"
+        value: "0"
       - key: DB_BEHIND_TRANSACTION_POOLER
         value: "true"
       - key: DB_REQUIRE_SSL

@@ -144,8 +144,32 @@ dangerous direction**: it lets a caller pick their own rate-limit bucket and
 walk past the limits on login, registration, and password reset — the endpoints
 with no user id to bucket by. Too low only groups more callers together.
 
-Vercel rewrite → container host balancer is typically `2`. Verify against a real
-request before trusting it.
+So **measure it, do not guess it.** The blueprint ships `0` for that reason.
+Once deployed, call the diagnostic as an admin from an ordinary browser:
+
+```
+GET /api/v1/admin/diagnostics/client-ip
+```
+
+```json
+{
+  "socket_peer": "10.0.0.7",
+  "forwarded_chain": ["203.0.113.9", "76.76.21.21"],
+  "chain_length": 2,
+  "configured_depth": 0,
+  "resolved_client_ip": "10.0.0.7",
+  "resolved_from": "socket_peer",
+  "implied_depth": 2,
+  "matches_configuration": false
+}
+```
+
+Set `TRUSTED_PROXY_COUNT` to `implied_depth`, redeploy, and call it again until
+`matches_configuration` is true and `resolved_client_ip` is your real address.
+
+Send **no `X-Forwarded-For` of your own** when reading this. Your header would be
+counted too, and the recommendation would come back one too high — which is the
+direction that hurts.
 
 ---
 

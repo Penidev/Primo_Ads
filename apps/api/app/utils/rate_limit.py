@@ -40,7 +40,7 @@ def _socket_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def _client_ip(request: Request) -> str:
+def resolve_client_ip(request: Request) -> str:
     """Resolve the client IP against the configured trusted-proxy depth.
 
     X-Forwarded-For is built by *appending*: each proxy adds the peer it received
@@ -83,7 +83,7 @@ def _client_ip(request: Request) -> str:
 
 def _identity(request: Request) -> str:
     user_id = getattr(request.state, "user_id", None)
-    return f"user:{user_id}" if user_id else f"ip:{_client_ip(request)}"
+    return f"user:{user_id}" if user_id else f"ip:{resolve_client_ip(request)}"
 
 
 async def enforce(request: Request, limit: RateLimit) -> None:

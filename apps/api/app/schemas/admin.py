@@ -190,3 +190,25 @@ class FeatureFlagAdmin(BaseModel):
     applies_to: str
 
     model_config = {"from_attributes": True}
+
+
+# ---------- deployment diagnostics ----------
+
+
+class ClientIpDiagnostic(BaseModel):
+    """How this deployment resolves a caller's IP for rate limiting.
+
+    Exists so TRUSTED_PROXY_COUNT can be measured against a real request instead
+    of guessed. Guessing it too high lets a caller forge their own rate-limit
+    bucket, so `implied_depth` is the number to trust — read from a request that
+    sends no X-Forwarded-For of its own.
+    """
+
+    socket_peer: str | None = None
+    forwarded_chain: list[str]
+    chain_length: int
+    configured_depth: int
+    resolved_client_ip: str
+    resolved_from: str
+    implied_depth: int
+    matches_configuration: bool

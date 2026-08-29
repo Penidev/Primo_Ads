@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.db.session import get_db
 from app.deps import get_current_admin
 from app.models import (
@@ -30,6 +31,7 @@ from app.schemas.admin import (
     ActionPricingUpdate,
     AlertEntry,
     AuditEntry,
+    ClientIpDiagnostic,
     CreditRatioUpdate,
     FeatureFlagAdmin,
     FeatureFlagUpdate,
@@ -60,6 +62,7 @@ from app.services.credit_service import (
     PricingNotConfiguredError,
 )
 from app.services.monitoring_service import MonitoringService
+from app.utils.rate_limit import resolve_client_ip
 
 router = APIRouter(
     prefix="/admin",
@@ -487,3 +490,41 @@ async def list_security_events(
 async def list_alerts(db: AsyncSession = Depends(get_db)) -> list[dict]:
     """Alert thresholds currently breached."""
     return await MonitoringService(db).active_alerts()
+
+
+# ---------------- deployment diagnostics ----------------
+
+
+@router.get("/diagnostics/client-ip", response_model=ClientIpDiagnostic)
+async def client_ip_diagnostic(request: Request) -> ClientIpDiagnostic:
+    """Report how this deployment resolves a caller's IP, so TRUSTED_PROXY_COUNT
+    can be measured rather than guessed.
+
+    That setting decides which X-Forwarded-For entry is treated as the client for
+    rate limiting. Guessing it high is not a harmless error: the left-hand entries
+    of that header are supplied by the caller, so an over-counted depth lets
+    anyone choose their own rate-limit bucket and walk past the limits on login,
+    registration, and password reset.
+
+    To read this correctly, call it from an ordinary browser and send no
+    X-Forwarded-For header yourself. `chain_length` is then the number of proxies
+    that appended, which is the value to configure. If you send your own header
+    the count includes it and the recommendation will be one too high — which is
+    the direction that hurts.
+
+    Admin-only, because the response describes network topology.
+    """
+    forwarded = request.headers.get("x-forwarded-for")
+    chain = [p.strip() for p in forwarded.split(",") if p.strip()] if forwarded else []
+    resolved = resolve_client_ip(request)
+
+    return ClientIpDiagnostic(
+        socket_peer=request.client.host if request.client else None,
+        forwarded_chain=chain,
+        chain_length=len(chain),
+        configured_depth=settings.trusted_proxy_count,
+        resolved_client_ip=resolved,
+        resolved_from=("forwarded_chain" if chain and resolved in chain else "socket_peer"),
+        implied_depth=len(chain),
+        matches_configuration=len(chain) == settings.trusted_proxy_count,
+    )
