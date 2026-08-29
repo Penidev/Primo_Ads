@@ -24,9 +24,7 @@ class InsufficientCreditsError(Exception):
     def __init__(self, required: Decimal, available: Decimal):
         self.required = required
         self.available = available
-        super().__init__(
-            f"Insufficient credits: need {required}, have {available}."
-        )
+        super().__init__(f"Insufficient credits: need {required}, have {available}.")
 
 
 class PricingNotConfiguredError(Exception):

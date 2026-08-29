@@ -90,15 +90,11 @@ class TestLiveModeWithoutCredentials:
         with pytest.raises(ProviderUnavailableError):
             get_storage_adapter()
 
-    def test_unknown_video_provider_raises_provider_unavailable(
-        self, live_mode_without_keys
-    ):
+    def test_unknown_video_provider_raises_provider_unavailable(self, live_mode_without_keys):
         with pytest.raises(ProviderUnavailableError):
             get_video_adapter("no-such-provider")
 
-    def test_optional_storage_returns_none_instead_of_raising(
-        self, live_mode_without_keys
-    ):
+    def test_optional_storage_returns_none_instead_of_raising(self, live_mode_without_keys):
         assert get_optional_storage_adapter() is None
 
 

@@ -13,7 +13,7 @@ from dataclasses import dataclass
 class CheckoutRequest:
     amount_usd: float
     description: str
-    reference: str          # our internal purchase id (idempotency anchor)
+    reference: str  # our internal purchase id (idempotency anchor)
     success_url: str
     cancel_url: str
     metadata: dict[str, str]
@@ -31,11 +31,11 @@ class WebhookEvent:
     """Normalised, verified gateway event."""
 
     gateway: str
-    event_id: str           # used for idempotent processing
+    event_id: str  # used for idempotent processing
     event_type: str
     is_payment_success: bool
     amount_usd: float | None
-    reference: str | None   # echo of CheckoutRequest.reference
+    reference: str | None  # echo of CheckoutRequest.reference
     metadata: dict[str, str]
 
 

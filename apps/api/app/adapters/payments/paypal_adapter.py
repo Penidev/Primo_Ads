@@ -126,9 +126,7 @@ class PayPalAdapter(PaymentAdapter):
             "PayPal webhooks must be verified via verify_webhook_async()."
         )
 
-    async def verify_webhook_async(
-        self, raw_body: bytes, headers: dict[str, str]
-    ) -> WebhookEvent:
+    async def verify_webhook_async(self, raw_body: bytes, headers: dict[str, str]) -> WebhookEvent:
         webhook_id = settings.paypal_webhook_id
         if not webhook_id:
             raise WebhookVerificationError("PayPal webhook id is not configured.")

@@ -88,9 +88,7 @@ class TestCozzipayVerification:
     def test_rejects_malformed_json(self):
         body = b"not json at all"
         with pytest.raises(WebhookVerificationError):
-            CozzipayAdapter().verify_webhook(
-                body, {"x-cozzipay-signature": _cozzi_signature(body)}
-            )
+            CozzipayAdapter().verify_webhook(body, {"x-cozzipay-signature": _cozzi_signature(body)})
 
     def test_non_success_event_is_not_marked_as_payment(self):
         body = _cozzi_body(event="checkout.expired")
@@ -112,9 +110,7 @@ class TestCozzipayVerification:
         monkeypatch.setattr(settings, "cozzipay_webhook_secret", None, raising=False)
         body = _cozzi_body()
         with pytest.raises(WebhookVerificationError):
-            CozzipayAdapter().verify_webhook(
-                body, {"x-cozzipay-signature": _cozzi_signature(body)}
-            )
+            CozzipayAdapter().verify_webhook(body, {"x-cozzipay-signature": _cozzi_signature(body)})
 
 
 # --------------------------- Stripe ---------------------------
@@ -147,9 +143,7 @@ def _stripe_header(body: bytes, timestamp: int | None = None, secret: str = STRI
 class TestStripeVerification:
     def test_accepts_correct_signature(self):
         body = _stripe_body()
-        event = StripeAdapter().verify_webhook(
-            body, {"stripe-signature": _stripe_header(body)}
-        )
+        event = StripeAdapter().verify_webhook(body, {"stripe-signature": _stripe_header(body)})
         assert event.is_payment_success is True
         assert event.reference == "pur_xyz789"
         assert event.amount_usd == 49.0
@@ -160,9 +154,7 @@ class TestStripeVerification:
 
     def test_rejects_malformed_header(self):
         with pytest.raises(WebhookVerificationError):
-            StripeAdapter().verify_webhook(
-                _stripe_body(), {"stripe-signature": "garbage"}
-            )
+            StripeAdapter().verify_webhook(_stripe_body(), {"stripe-signature": "garbage"})
 
     def test_rejects_wrong_secret(self):
         body = _stripe_body()
@@ -196,9 +188,7 @@ class TestStripeVerification:
 
     def test_non_success_event_is_not_marked_as_payment(self):
         body = _stripe_body(event="checkout.session.expired")
-        event = StripeAdapter().verify_webhook(
-            body, {"stripe-signature": _stripe_header(body)}
-        )
+        event = StripeAdapter().verify_webhook(body, {"stripe-signature": _stripe_header(body)})
         assert event.is_payment_success is False
 
     def test_missing_webhook_secret_refuses_verification(self, monkeypatch):

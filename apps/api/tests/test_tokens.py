@@ -79,9 +79,9 @@ class TestPasswords:
     @pytest.mark.parametrize(
         "password,expected_ok",
         [
-            ("short1", False),          # too short
+            ("short1", False),  # too short
             ("alllettersonly", False),  # no digit
-            ("1234567890", False),      # no letter
+            ("1234567890", False),  # no letter
             ("valid pass 1", True),
         ],
     )

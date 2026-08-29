@@ -44,7 +44,5 @@ async def update_onboarding(
                 "company_size": user.company_size,
             },
         )
-        await analytics.capture(
-            analytics.EVENT_ONBOARDING_COMPLETED, distinct_id=str(user.id)
-        )
+        await analytics.capture(analytics.EVENT_ONBOARDING_COMPLETED, distinct_id=str(user.id))
     return user

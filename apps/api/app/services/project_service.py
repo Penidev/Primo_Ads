@@ -13,9 +13,7 @@ class ProjectService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create(
-        self, user_id: uuid.UUID, title: str | None, brief: dict[str, Any]
-    ) -> Project:
+    async def create(self, user_id: uuid.UUID, title: str | None, brief: dict[str, Any]) -> Project:
         project = Project(user_id=user_id, title=title, brief=brief or {}, status="draft")
         self.db.add(project)
         await self.db.commit()

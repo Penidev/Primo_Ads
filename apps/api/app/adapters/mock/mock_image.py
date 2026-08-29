@@ -54,9 +54,7 @@ class MockImageAdapter(ImageAdapter):
         image = Image.new("RGB", (width, height))
         for y in range(height):
             ratio = y / max(height - 1, 1)
-            row = tuple(
-                int(top[i] + (bottom[i] - top[i]) * ratio) for i in range(3)
-            )
+            row = tuple(int(top[i] + (bottom[i] - top[i]) * ratio) for i in range(3))
             for x in range(width):
                 image.putpixel((x, y), row)
 

@@ -211,10 +211,7 @@ class MonitoringService:
             EVENT_UNUSUAL_SPEND,
             severity=SEVERITY_WARNING,
             user_id=user_id,
-            description=(
-                f"{spent:.0f} credits spent in "
-                f"{UNUSUAL_SPEND_WINDOW_MINUTES} minutes"
-            ),
+            description=(f"{spent:.0f} credits spent in {UNUSUAL_SPEND_WINDOW_MINUTES} minutes"),
             detail={"credits_spent": spent},
         )
         return True

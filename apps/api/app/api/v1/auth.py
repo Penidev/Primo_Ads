@@ -143,9 +143,7 @@ async def login(
     _set_auth_cookies(response, access, refresh)
 
     if user.is_admin:
-        await AuditService(db).record(
-            ACTION_ADMIN_LOGIN, actor=user, request=request
-        )
+        await AuditService(db).record(ACTION_ADMIN_LOGIN, actor=user, request=request)
 
     return TokenResponse(access_token=access)
 
@@ -219,9 +217,7 @@ async def request_password_reset(
         # Logged at debug level only, and never returned in the response.
         logger.debug("Password reset token issued (length %d)", len(token))
 
-    return {
-        "detail": "If an account exists for that address, a reset link has been sent."
-    }
+    return {"detail": "If an account exists for that address, a reset link has been sent."}
 
 
 @router.post(
@@ -239,9 +235,7 @@ async def confirm_password_reset(
     Succeeding also revokes every existing session for the account.
     """
     try:
-        user = await PasswordResetService(db).confirm_reset(
-            body.token, body.new_password
-        )
+        user = await PasswordResetService(db).confirm_reset(body.token, body.new_password)
     except PasswordResetError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
 

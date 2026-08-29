@@ -50,9 +50,7 @@ async def _record_forgery(db: AsyncSession, request: Request, gateway: str) -> N
 
 
 @router.post("/stripe", status_code=status.HTTP_200_OK)
-async def stripe_webhook(
-    request: Request, db: AsyncSession = Depends(get_db)
-) -> dict[str, bool]:
+async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict[str, bool]:
     raw = await request.body()
     try:
         event = StripeAdapter().verify_webhook(raw, _headers(request))
@@ -67,9 +65,7 @@ async def stripe_webhook(
 
 
 @router.post("/cozzipay", status_code=status.HTTP_200_OK)
-async def cozzipay_webhook(
-    request: Request, db: AsyncSession = Depends(get_db)
-) -> dict[str, bool]:
+async def cozzipay_webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict[str, bool]:
     raw = await request.body()
     try:
         event = CozzipayAdapter().verify_webhook(raw, _headers(request))
@@ -84,9 +80,7 @@ async def cozzipay_webhook(
 
 
 @router.post("/paypal", status_code=status.HTTP_200_OK)
-async def paypal_webhook(
-    request: Request, db: AsyncSession = Depends(get_db)
-) -> dict[str, bool]:
+async def paypal_webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict[str, bool]:
     raw = await request.body()
     try:
         # PayPal requires a remote verification round-trip.

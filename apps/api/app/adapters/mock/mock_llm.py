@@ -68,13 +68,9 @@ class MockLLMAdapter(LLMAdapter):
             user_content,
             "the product",
         )
-        aspect_ratio = _extract(
-            r'"aspect_ratio"\s*:\s*"([^"]{1,10})"', user_content, "9:16"
-        )
+        aspect_ratio = _extract(r'"aspect_ratio"\s*:\s*"([^"]{1,10})"', user_content, "9:16")
         try:
-            target = int(
-                _extract(r'"target_duration_seconds"\s*:\s*(\d{1,3})', user_content, "30")
-            )
+            target = int(_extract(r'"target_duration_seconds"\s*:\s*(\d{1,3})', user_content, "30"))
         except ValueError:
             target = 30
 
@@ -97,8 +93,7 @@ class MockLLMAdapter(LLMAdapter):
                     "script_text": f"{intent}",
                     "voiceover_direction": "Calm, confident, unhurried delivery.",
                     "visual_description": (
-                        f"{label}: a considered shot establishing {product} "
-                        f"for {brand}."
+                        f"{label}: a considered shot establishing {product} for {brand}."
                     ),
                     "camera_movement": _CAMERA[(seed + index) % len(_CAMERA)],
                     "color_grading": "Cool shadows warming toward the resolution",
@@ -106,9 +101,7 @@ class MockLLMAdapter(LLMAdapter):
                     "audio_sfx": "Restrained ambience with a single accent hit",
                     "graphics_overlay": None,
                     "brand_elements": (
-                        f"{brand} appears in the final beat"
-                        if index == scene_count - 1
-                        else None
+                        f"{brand} appears in the final beat" if index == scene_count - 1 else None
                     ),
                     "video_prompt": (
                         f"{_CAMERA[(seed + index) % len(_CAMERA)]} of a scene "

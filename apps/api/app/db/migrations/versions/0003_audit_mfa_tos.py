@@ -38,9 +38,7 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
     op.create_index("ix_audit_logs_action", "audit_logs", ["action"])
-    op.create_index(
-        "ix_audit_logs_created", "audit_logs", [sa.text("created_at DESC")]
-    )
+    op.create_index("ix_audit_logs_created", "audit_logs", [sa.text("created_at DESC")])
 
     # --- security_events (alerting signals) ---
     op.create_table(
@@ -61,18 +59,14 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
     op.create_index("ix_security_events_type", "security_events", ["event_type"])
-    op.create_index(
-        "ix_security_events_created", "security_events", [sa.text("created_at DESC")]
-    )
+    op.create_index("ix_security_events_created", "security_events", [sa.text("created_at DESC")])
 
     # --- user columns for MFA recovery and legal acceptance ---
     op.add_column(
         "users",
         sa.Column("mfa_recovery_codes", postgresql.ARRAY(sa.String()), nullable=True),
     )
-    op.add_column(
-        "users", sa.Column("tos_accepted_at", sa.DateTime(timezone=True), nullable=True)
-    )
+    op.add_column("users", sa.Column("tos_accepted_at", sa.DateTime(timezone=True), nullable=True))
     op.add_column("users", sa.Column("tos_version", sa.String(20), nullable=True))
 
 

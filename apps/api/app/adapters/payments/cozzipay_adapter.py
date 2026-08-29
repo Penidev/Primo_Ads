@@ -42,9 +42,7 @@ class CozzipayAdapter(PaymentAdapter):
         self._secret = settings.cozzipay_secret_key
 
     def _signed_headers(self, body: str, idempotency_key: str) -> dict[str, str]:
-        signature = hmac.new(
-            self._secret.encode(), body.encode(), hashlib.sha512
-        ).hexdigest()
+        signature = hmac.new(self._secret.encode(), body.encode(), hashlib.sha512).hexdigest()
         return {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._secret}",

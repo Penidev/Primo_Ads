@@ -32,7 +32,7 @@ class ModerationCategory(StrEnum):
 
 class ModerationDecision(StrEnum):
     ALLOW = "allow"
-    FLAG = "flag"   # proceed, but record for review
+    FLAG = "flag"  # proceed, but record for review
     BLOCK = "block"  # refuse outright
 
 
@@ -97,26 +97,56 @@ _REAL_PERSON_PATTERNS = [
 
 _CATEGORY_TERMS: dict[ModerationCategory, list[str]] = {
     ModerationCategory.SEXUAL: [
-        "nude", "nudity", "naked", "explicit sex", "sexual act", "pornographic",
-        "porn", "erotic", "fetish", "topless",
+        "nude",
+        "nudity",
+        "naked",
+        "explicit sex",
+        "sexual act",
+        "pornographic",
+        "porn",
+        "erotic",
+        "fetish",
+        "topless",
     ],
     ModerationCategory.VIOLENCE: [
-        "gore", "gory", "decapitation", "beheading", "mutilation", "dismembered",
-        "torture", "blood spraying", "graphic injury",
+        "gore",
+        "gory",
+        "decapitation",
+        "beheading",
+        "mutilation",
+        "dismembered",
+        "torture",
+        "blood spraying",
+        "graphic injury",
     ],
     ModerationCategory.HATE: [
-        "racial slur", "ethnic cleansing", "white power", "hate group",
-        "inferior race", "subhuman",
+        "racial slur",
+        "ethnic cleansing",
+        "white power",
+        "hate group",
+        "inferior race",
+        "subhuman",
     ],
     ModerationCategory.ILLEGAL: [
-        "how to make a bomb", "buy cocaine", "sell heroin", "money laundering",
-        "counterfeit currency", "hire a hitman", "credit card dump",
+        "how to make a bomb",
+        "buy cocaine",
+        "sell heroin",
+        "money laundering",
+        "counterfeit currency",
+        "hire a hitman",
+        "credit card dump",
     ],
     ModerationCategory.SELF_HARM: [
-        "suicide method", "how to self harm", "kill yourself", "cutting yourself",
+        "suicide method",
+        "how to self harm",
+        "kill yourself",
+        "cutting yourself",
     ],
     ModerationCategory.MINOR_SAFETY: [
-        "sexualized child", "sexual minor", "child in lingerie", "underage model",
+        "sexualized child",
+        "sexual minor",
+        "child in lingerie",
+        "underage model",
     ],
 }
 
@@ -159,12 +189,20 @@ _EXPLANATIONS = {
 # Advisory only: these are lawful but risky claims an advertiser should check.
 _ADVISORY_TERMS: dict[ModerationCategory, list[str]] = {
     ModerationCategory.MEDICAL_CLAIM: [
-        "cures", "cure cancer", "clinically proven", "medically proven",
-        "treats disease", "guaranteed weight loss", "fda approved",
+        "cures",
+        "cure cancer",
+        "clinically proven",
+        "medically proven",
+        "treats disease",
+        "guaranteed weight loss",
+        "fda approved",
     ],
     ModerationCategory.FINANCIAL_CLAIM: [
-        "guaranteed returns", "risk free investment", "double your money",
-        "guaranteed income", "get rich quick",
+        "guaranteed returns",
+        "risk free investment",
+        "double your money",
+        "guaranteed income",
+        "get rich quick",
     ],
 }
 _ADVISORY_PATTERNS = {

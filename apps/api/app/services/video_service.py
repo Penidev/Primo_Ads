@@ -67,9 +67,7 @@ class VideoService:
         ratio = campaign.get("format")
         return ratio if ratio in ("9:16", "16:9", "1:1") else "9:16"
 
-    def _build_config(
-        self, project: Project, scene: Scene, model: VideoModel
-    ) -> VideoGenConfig:
+    def _build_config(self, project: Project, scene: Scene, model: VideoModel) -> VideoGenConfig:
         aspect_ratio = self._aspect_ratio(project)
         script_data = scene.script_data or {}
         base_prompt = scene.compiled_prompt or script_data.get("video_prompt") or ""
@@ -93,9 +91,7 @@ class VideoService:
         resolution = "1080p" if "1080p" in resolutions else resolutions[0]
 
         references = (
-            list(scene.reference_image_urls or [])
-            if model.supports_image_reference
-            else []
+            list(scene.reference_image_urls or []) if model.supports_image_reference else []
         )
 
         return VideoGenConfig(
@@ -111,11 +107,7 @@ class VideoService:
     # ---------- cost ----------
 
     async def cost_for_project(self, project: Project, model_slug: str) -> Decimal:
-        pending = [
-            s
-            for s in await self._scenes(project.id)
-            if s.generation_status != "completed"
-        ]
+        pending = [s for s in await self._scenes(project.id) if s.generation_status != "completed"]
         if not pending:
             return Decimal(0)
         return await self.credits.video_scene_cost(model_slug, len(pending))

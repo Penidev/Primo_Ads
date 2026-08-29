@@ -39,9 +39,7 @@ class StitchService:
 
     async def _completed_scenes(self, project_id: uuid.UUID) -> list[Scene]:
         rows = await self.db.scalars(
-            select(Scene)
-            .where(Scene.project_id == project_id)
-            .order_by(Scene.scene_number)
+            select(Scene).where(Scene.project_id == project_id).order_by(Scene.scene_number)
         )
         return [s for s in rows if s.generation_status == "completed" and s.video_url]
 
@@ -64,9 +62,7 @@ class StitchService:
         if not scenes:
             raise StitchError("No completed scenes to assemble yet.")
 
-        expected = list(
-            await self.db.scalars(select(Scene).where(Scene.project_id == project.id))
-        )
+        expected = list(await self.db.scalars(select(Scene).where(Scene.project_id == project.id)))
         if len(scenes) != len(expected):
             raise StitchError("Some scenes are still generating or have failed.")
 
@@ -90,9 +86,7 @@ class StitchService:
             video_key = f"projects/{project.user_id}/{project.id}/final/{uuid.uuid4()}.mp4"
             thumb_key = f"projects/{project.user_id}/{project.id}/final/{uuid.uuid4()}.jpg"
 
-            await self.storage.upload(
-                video_key, result.output_path.read_bytes(), "video/mp4"
-            )
+            await self.storage.upload(video_key, result.output_path.read_bytes(), "video/mp4")
             if result.thumbnail_path.exists():
                 await self.storage.upload(
                     thumb_key, result.thumbnail_path.read_bytes(), "image/jpeg"

@@ -69,9 +69,7 @@ class MockVideoAdapter(VideoModelAdapter):
     async def check_status(self, provider_job_id: str) -> VideoGenStatus:
         job = _JOBS.get(provider_job_id)
         if job is None:
-            return VideoGenStatus(
-                state=JobState.FAILED, error_message="Unknown mock job id."
-            )
+            return VideoGenStatus(state=JobState.FAILED, error_message="Unknown mock job id.")
 
         job["polls"] += 1
 

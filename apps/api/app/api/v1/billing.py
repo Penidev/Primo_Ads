@@ -105,13 +105,9 @@ async def create_checkout(
     service = PaymentService(db)
     try:
         if body.package_slug:
-            session = await service.start_package_purchase(
-                user, body.package_slug, body.gateway
-            )
+            session = await service.start_package_purchase(user, body.package_slug, body.gateway)
         else:
-            session = await service.start_plan_purchase(
-                user, str(body.plan_slug), body.gateway
-            )
+            session = await service.start_plan_purchase(user, str(body.plan_slug), body.gateway)
     except PaymentError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
 

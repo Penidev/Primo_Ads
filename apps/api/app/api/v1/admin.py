@@ -133,9 +133,7 @@ async def update_action_pricing(
     admin: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ) -> ActionPricing:
-    pricing = await db.scalar(
-        select(ActionPricing).where(ActionPricing.action_key == action_key)
-    )
+    pricing = await db.scalar(select(ActionPricing).where(ActionPricing.action_key == action_key))
     if pricing is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown action")
 

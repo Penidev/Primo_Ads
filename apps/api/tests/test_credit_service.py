@@ -75,9 +75,7 @@ class TestPricing:
 
     async def test_disabled_model_is_rejected(self, db):
         await _pricing(db, "video_scene", "5")
-        db.add(
-            VideoModel(slug="off-model", credit_multiplier=Decimal("1"), is_enabled=False)
-        )
+        db.add(VideoModel(slug="off-model", credit_multiplier=Decimal("1"), is_enabled=False))
         await db.flush()
         with pytest.raises(PricingNotConfiguredError):
             await CreditService(db).video_scene_cost("off-model", scene_count=1)

@@ -70,11 +70,7 @@ class ScriptService:
         campaign = self._campaign(brief)
         category = ad_category or campaign.get("ad_category")
         ratio = aspect_ratio or campaign.get("format") or DEFAULT_ASPECT_RATIO
-        duration = (
-            target_duration
-            or campaign.get("duration_seconds")
-            or DEFAULT_DURATION_SECONDS
-        )
+        duration = target_duration or campaign.get("duration_seconds") or DEFAULT_DURATION_SECONDS
         if ratio not in ("9:16", "16:9", "1:1"):
             ratio = DEFAULT_ASPECT_RATIO
         try:
@@ -181,9 +177,7 @@ class ScriptService:
         await self.db.commit()
         return script
 
-    async def _persist(
-        self, project: Project, script: GeneratedScript, aspect_ratio: str
-    ) -> None:
+    async def _persist(self, project: Project, script: GeneratedScript, aspect_ratio: str) -> None:
         """Store the script on the project and rebuild its scene rows."""
         project.script = script.model_dump()
         project.status = "scripted"

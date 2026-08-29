@@ -23,9 +23,7 @@ from app.utils.uploads import MAX_IMAGE_BYTES, UploadValidationError
 router = APIRouter(prefix="/projects", tags=["projects"])
 
 
-async def _load_owned(
-    project_id: uuid.UUID, user: User, db: AsyncSession
-) -> Project:
+async def _load_owned(project_id: uuid.UUID, user: User, db: AsyncSession) -> Project:
     project = await ProjectService(db).get_owned(user.id, project_id)
     if project is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")

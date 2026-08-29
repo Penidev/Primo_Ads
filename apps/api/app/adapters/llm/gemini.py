@@ -66,9 +66,7 @@ class GeminiAdapter(LLMAdapter):
                 headers={"x-goog-api-key": self.api_key},
             )
         if response.status_code >= 400:
-            raise LLMRequestError(
-                f"Gemini request failed with status {response.status_code}."
-            )
+            raise LLMRequestError(f"Gemini request failed with status {response.status_code}.")
         data = response.json()
         try:
             return data["candidates"][0]["content"]["parts"][0]["text"]
@@ -192,9 +190,7 @@ class GeminiAdapter(LLMAdapter):
                 headers={"x-goog-api-key": self.api_key},
             )
         if response.status_code >= 400:
-            raise LLMRequestError(
-                f"Gemini embedding failed with status {response.status_code}."
-            )
+            raise LLMRequestError(f"Gemini embedding failed with status {response.status_code}.")
         data = response.json()
         try:
             return list(data["embedding"]["values"])

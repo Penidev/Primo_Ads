@@ -88,9 +88,7 @@ class TestMockLlmScriptOutput:
         """The live prompt requires this; the mock must honour the same rule."""
         raw = await MockLLMAdapter().generate_json("system", BRIEF_CONTENT)
         script = GeneratedScript.model_validate(json.loads(raw))
-        assert sum(s.duration_seconds for s in script.scenes) == (
-            script.total_duration_seconds
-        )
+        assert sum(s.duration_seconds for s in script.scenes) == (script.total_duration_seconds)
 
     async def test_respects_requested_duration(self):
         content = json.dumps({"brand": {"name": "X"}, "target_duration_seconds": 15})
@@ -138,14 +136,10 @@ class TestMockLlmVideoAnalysis:
             b"bytes",
             "video/mp4",
         )
-        assert BlueprintAnalysis.model_validate(json.loads(raw)).ad_category == (
-            "social-proof"
-        )
+        assert BlueprintAnalysis.model_validate(json.loads(raw)).ad_category == ("social-proof")
 
     async def test_beats_have_ascending_non_overlapping_timings(self):
-        raw = await MockLLMAdapter().analyze_video_json(
-            "system", "analyse", b"bytes", "video/mp4"
-        )
+        raw = await MockLLMAdapter().analyze_video_json("system", "analyse", b"bytes", "video/mp4")
         beats = BlueprintAnalysis.model_validate(json.loads(raw)).beats
         for previous, following in zip(beats, beats[1:], strict=False):
             assert previous.end_second <= following.start_second
@@ -235,9 +229,7 @@ class TestMockVideoLifecycle:
 
     async def test_failure_token_reports_failed_state(self):
         adapter = MockVideoAdapter()
-        submission = await adapter.submit(
-            VideoGenConfig(model_id="mock", prompt="__FAIL_VIDEO__")
-        )
+        submission = await adapter.submit(VideoGenConfig(model_id="mock", prompt="__FAIL_VIDEO__"))
         status = await adapter.check_status(submission.provider_job_id)
         assert status.state is JobState.FAILED
         assert status.error_message

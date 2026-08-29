@@ -47,9 +47,7 @@ class StripeAdapter(PaymentAdapter):
             "client_reference_id": request.reference,
             "line_items[0][quantity]": "1",
             "line_items[0][price_data][currency]": "usd",
-            "line_items[0][price_data][unit_amount]": str(
-                int(round(request.amount_usd * 100))
-            ),
+            "line_items[0][price_data][unit_amount]": str(int(round(request.amount_usd * 100))),
             "line_items[0][price_data][product_data][name]": request.description,
             "metadata[reference]": request.reference,
         }

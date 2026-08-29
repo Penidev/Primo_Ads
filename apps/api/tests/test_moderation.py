@@ -54,9 +54,7 @@ class TestRealPersonLikeness:
     def test_blocks_likeness_requests(self, text):
         result = moderate_text(text)
         assert result.blocked is True
-        assert any(
-            f.category is ModerationCategory.REAL_PERSON for f in result.findings
-        )
+        assert any(f.category is ModerationCategory.REAL_PERSON for f in result.findings)
 
     def test_explanation_mentions_consent_path(self):
         """Users need to know the legitimate alternative, not just a refusal."""
@@ -89,9 +87,7 @@ class TestBlockedCategories:
 
     def test_reports_matched_terms_for_review(self):
         result = moderate_text("Show gore and torture")
-        finding = next(
-            f for f in result.findings if f.category is ModerationCategory.VIOLENCE
-        )
+        finding = next(f for f in result.findings if f.category is ModerationCategory.VIOLENCE)
         assert "gore" in finding.matched_terms
 
 
@@ -138,15 +134,11 @@ class TestPayloadScreening:
 
 class TestMerge:
     def test_block_dominates(self):
-        merged = merge(
-            [moderate_text("clean copy"), moderate_text("show explicit sex")]
-        )
+        merged = merge([moderate_text("clean copy"), moderate_text("show explicit sex")])
         assert merged.decision is ModerationDecision.BLOCK
 
     def test_flag_when_no_block(self):
-        merged = merge(
-            [moderate_text("clean copy"), moderate_text("guaranteed returns")]
-        )
+        merged = merge([moderate_text("clean copy"), moderate_text("guaranteed returns")])
         assert merged.decision is ModerationDecision.FLAG
 
     def test_allow_when_all_clean(self):

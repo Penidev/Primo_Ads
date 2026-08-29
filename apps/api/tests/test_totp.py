@@ -41,14 +41,10 @@ class TestRfc6238Vectors:
 
 class TestCodeGeneration:
     def test_stable_within_a_window(self):
-        assert generate_code(RFC_SECRET, timestamp=30) == generate_code(
-            RFC_SECRET, timestamp=59
-        )
+        assert generate_code(RFC_SECRET, timestamp=30) == generate_code(RFC_SECRET, timestamp=59)
 
     def test_changes_between_windows(self):
-        assert generate_code(RFC_SECRET, timestamp=0) != generate_code(
-            RFC_SECRET, timestamp=30
-        )
+        assert generate_code(RFC_SECRET, timestamp=0) != generate_code(RFC_SECRET, timestamp=30)
 
     def test_default_length_is_six(self):
         assert len(generate_code(RFC_SECRET)) == 6

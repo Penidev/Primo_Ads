@@ -76,9 +76,7 @@ async def _state(project: Project, db: AsyncSession) -> AssetPlanState:
                     assets=[SceneAssetPublic.model_validate(a) for a in assets],
                 )
             )
-    return AssetPlanState(
-        project_status=project.status, pending_assets=pending, scenes=groups
-    )
+    return AssetPlanState(project_status=project.status, pending_assets=pending, scenes=groups)
 
 
 @router.get("", response_model=AssetPlanState)
@@ -191,9 +189,7 @@ async def regenerate_asset(
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
 
 
-async def _load_asset(
-    project: Project, asset_id: uuid.UUID, db: AsyncSession
-) -> SceneAsset:
+async def _load_asset(project: Project, asset_id: uuid.UUID, db: AsyncSession) -> SceneAsset:
     """Load an asset, confirming it belongs to a scene of this project."""
     asset = await db.scalar(select(SceneAsset).where(SceneAsset.id == asset_id))
     if asset is None:

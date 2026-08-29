@@ -163,9 +163,7 @@ class SwipeFileService:
             stmt = stmt.where(AdBlueprint.is_approved.is_(approved))
         if ad_category:
             stmt = stmt.where(AdBlueprint.ad_category == ad_category)
-        rows = await self.db.scalars(
-            stmt.order_by(AdBlueprint.created_at.desc()).limit(limit)
-        )
+        rows = await self.db.scalars(stmt.order_by(AdBlueprint.created_at.desc()).limit(limit))
         return list(rows)
 
     async def apply_edits(self, blueprint: AdBlueprint, data: dict[str, Any]) -> AdBlueprint:

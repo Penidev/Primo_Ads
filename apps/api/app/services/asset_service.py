@@ -166,8 +166,7 @@ class AssetService:
     async def pending_count(self, project: Project) -> int:
         db = self._require_db()
         scene_ids = [
-            s.id
-            for s in await db.scalars(select(Scene).where(Scene.project_id == project.id))
+            s.id for s in await db.scalars(select(Scene).where(Scene.project_id == project.id))
         ]
         if not scene_ids:
             return 0
@@ -183,9 +182,7 @@ class AssetService:
         credits = CreditService(db)
         pending = await self.pending_count(project)
         required = (
-            await credits.action_cost(ASSET_ACTION_KEY, quantity=pending)
-            if pending
-            else Decimal(0)
+            await credits.action_cost(ASSET_ACTION_KEY, quantity=pending) if pending else Decimal(0)
         )
         balance = await credits.get_balance(project.user_id)
         return {
@@ -208,8 +205,7 @@ class AssetService:
         await db.commit()
 
         scene_ids = [
-            s.id
-            for s in await db.scalars(select(Scene).where(Scene.project_id == project.id))
+            s.id for s in await db.scalars(select(Scene).where(Scene.project_id == project.id))
         ]
         pending = list(
             await db.scalars(
@@ -331,9 +327,7 @@ class AssetService:
             voice_tone=tones,
         )
         try:
-            result = await image.generate(
-                ImageGenConfig(prompt=prompt, aspect_ratio=aspect_ratio)
-            )
+            result = await image.generate(ImageGenConfig(prompt=prompt, aspect_ratio=aspect_ratio))
         except ImageProviderError:
             return None
         return result.image_url
@@ -402,15 +396,11 @@ class AssetService:
     async def approve_all(self, project: Project) -> int:
         """Approve generated assets and attach them as video references."""
         db = self._require_db()
-        scenes = list(
-            await db.scalars(select(Scene).where(Scene.project_id == project.id))
-        )
+        scenes = list(await db.scalars(select(Scene).where(Scene.project_id == project.id)))
         approved = 0
         for scene in scenes:
             assets = list(
-                await db.scalars(
-                    select(SceneAsset).where(SceneAsset.scene_id == scene.id)
-                )
+                await db.scalars(select(SceneAsset).where(SceneAsset.scene_id == scene.id))
             )
             usable: list[str] = []
             for asset in assets:

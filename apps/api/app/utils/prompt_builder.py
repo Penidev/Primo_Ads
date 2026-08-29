@@ -109,7 +109,7 @@ def extract_json_object(raw: str) -> str:
         if newline != -1:
             text = text[newline + 1 :]
         if text.rstrip().endswith("```"):
-            text = text.rstrip()[: -3]
+            text = text.rstrip()[:-3]
         text = text.strip()
 
     start = text.find("{")

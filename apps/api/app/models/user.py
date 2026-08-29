@@ -37,7 +37,5 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     onboarding_completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Terms of service acceptance (legal guardrail).
-    tos_accepted_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    tos_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     tos_version: Mapped[str | None] = mapped_column(String(20), nullable=True)

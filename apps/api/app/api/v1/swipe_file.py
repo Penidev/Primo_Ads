@@ -178,9 +178,7 @@ async def set_approval(
     blueprint = await service.get(blueprint_id)
     if blueprint is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Blueprint not found")
-    updated = await service.set_approval(
-        blueprint, body.is_approved, body.effectiveness_score
-    )
+    updated = await service.set_approval(blueprint, body.is_approved, body.effectiveness_score)
     return _to_detail(updated)
 
 
@@ -197,9 +195,7 @@ async def regenerate_embedding(
 
 
 @router.delete("/{blueprint_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_blueprint(
-    blueprint_id: uuid.UUID, db: AsyncSession = Depends(get_db)
-) -> None:
+async def delete_blueprint(blueprint_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> None:
     service = _service(db)
     blueprint = await service.get(blueprint_id)
     if blueprint is None:

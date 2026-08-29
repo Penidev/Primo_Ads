@@ -104,7 +104,5 @@ class AuditService:
             stmt = stmt.where(AuditLog.action == action)
         if actor_id:
             stmt = stmt.where(AuditLog.actor_id == actor_id)
-        rows = await self.db.scalars(
-            stmt.order_by(AuditLog.created_at.desc()).limit(limit)
-        )
+        rows = await self.db.scalars(stmt.order_by(AuditLog.created_at.desc()).limit(limit))
         return list(rows)

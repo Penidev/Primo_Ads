@@ -26,7 +26,7 @@ class BlueprintBeat(BaseModel):
     """One structural beat of the reference ad."""
 
     beat_number: int = Field(ge=1, le=50)
-    label: str = Field(max_length=100)          # e.g. "Hook", "Agitation"
+    label: str = Field(max_length=100)  # e.g. "Hook", "Agitation"
     start_second: float = Field(ge=0, le=600)
     end_second: float = Field(ge=0, le=600)
     narrative_function: str = Field(max_length=1000)

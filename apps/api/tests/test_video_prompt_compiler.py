@@ -49,18 +49,14 @@ class TestCompilePrompt:
         assert "16:9 aspect ratio." in result
 
     def test_translates_brand_colours_to_language(self):
-        result = compile_prompt(
-            "A shot", aspect_ratio="9:16", brand_colours=["#3400D1", "#FFD600"]
-        )
+        result = compile_prompt("A shot", aspect_ratio="9:16", brand_colours=["#3400D1", "#FFD600"])
         assert "royal violet" in result
         assert "golden yellow" in result
         # Raw hex should not leak into the prompt.
         assert "#3400D1" not in result
 
     def test_deduplicates_similar_colours(self):
-        result = compile_prompt(
-            "A shot", aspect_ratio="9:16", brand_colours=["#3400D1", "#3500D2"]
-        )
+        result = compile_prompt("A shot", aspect_ratio="9:16", brand_colours=["#3400D1", "#3500D2"])
         assert result.count("royal violet") == 1
 
     def test_limits_to_three_colours(self):

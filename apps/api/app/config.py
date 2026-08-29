@@ -91,9 +91,7 @@ def _assert_provider_mode_safe(settings: "Settings") -> None:
     rather than a warning.
     """
     if settings.is_production and settings.provider_mode == "mock":
-        raise RuntimeError(
-            "PROVIDER_MODE=mock is not permitted when ENVIRONMENT=production."
-        )
+        raise RuntimeError("PROVIDER_MODE=mock is not permitted when ENVIRONMENT=production.")
 
 
 @lru_cache

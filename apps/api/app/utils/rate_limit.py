@@ -32,9 +32,7 @@ UPLOAD_LIMIT = RateLimit(requests=20, window_seconds=60, bucket="upload")
 CHECKOUT_LIMIT = RateLimit(requests=10, window_seconds=300, bucket="checkout")
 # Deliberately strict: reset requests trigger email and are an enumeration and
 # mail-flooding vector, so an hour-long window is appropriate.
-PASSWORD_RESET_LIMIT = RateLimit(
-    requests=3, window_seconds=3600, bucket="password_reset"
-)
+PASSWORD_RESET_LIMIT = RateLimit(requests=3, window_seconds=3600, bucket="password_reset")
 
 
 def _client_ip(request: Request) -> str:

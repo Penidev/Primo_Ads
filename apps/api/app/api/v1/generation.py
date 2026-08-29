@@ -47,8 +47,7 @@ def _enqueue_polling(project_id: uuid.UUID) -> None:
         # request would be wrong. Logged as a warning because a broker that is
         # persistently down means nothing gets stitched without a manual poll.
         logger.warning(
-            "Could not enqueue polling for project %s; falling back to on-demand "
-            "status polling.",
+            "Could not enqueue polling for project %s; falling back to on-demand status polling.",
             project_id,
             exc_info=True,
         )
@@ -82,8 +81,7 @@ async def _assert_concurrency_budget(user: User, db: AsyncSession) -> None:
     if len(list(active)) >= MAX_CONCURRENT_PROJECTS:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
-            "You already have the maximum number of generations running. "
-            "Wait for one to finish.",
+            "You already have the maximum number of generations running. Wait for one to finish.",
         )
 
 
@@ -162,9 +160,7 @@ async def reroll_scene(
 ) -> GenerationState:
     project = await _load_owned(project_id, user, db)
     scene = await db.scalar(
-        select(Scene).where(
-            Scene.project_id == project.id, Scene.scene_number == scene_number
-        )
+        select(Scene).where(Scene.project_id == project.id, Scene.scene_number == scene_number)
     )
     if scene is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Scene not found")
