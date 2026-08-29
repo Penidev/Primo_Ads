@@ -360,7 +360,7 @@ class TestWorkerWiring:
     would leave the pipeline silently unable to progress in production.
     """
 
-    def test_tasks_are_registered_under_expected_names(self):
+    async def test_tasks_are_registered_under_expected_names(self):
         from app.workers.celery_app import celery_app
 
         registered = set(celery_app.tasks.keys())

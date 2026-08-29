@@ -6,24 +6,61 @@ object storage. The temp directory is always removed, so provider URLs and
 intermediate media never linger on the worker.
 """
 
+import shutil
 import tempfile
 import uuid
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.storage.base import StorageAdapter
+from app.config import settings
 from app.models import Project, Scene
 from app.utils.ffmpeg import FFmpegError, stitch_clips
 
 DOWNLOAD_TIMEOUT = httpx.Timeout(300.0, connect=15.0)
 MAX_CLIP_BYTES = 200 * 1024 * 1024  # 200 MB per scene clip
+REMOTE_SCHEMES = {"http", "https"}
 
 
 class StitchError(Exception):
     """User-safe stitching failure."""
+
+
+def _local_source(url: str) -> Path | None:
+    """Resolve a `file://` clip URL to a path inside the media sandbox.
+
+    Returns None for ordinary http(s) URLs, which are fetched over the network.
+
+    The mock video adapter and the local storage adapter both hand back
+    `file://` URIs, so without this branch the stitching path is unreachable in
+    any environment that is not backed by S3 — which is exactly how it stayed
+    unexercised despite the unit tests passing.
+
+    Confined to `mock_media_dir` deliberately. A clip URL originates from a
+    provider response, which is untrusted input; honouring an arbitrary local
+    path would turn a compromised or misbehaving provider into an
+    arbitrary-file-read primitive.
+    """
+    parsed = urlparse(url)
+    if parsed.scheme in REMOTE_SCHEMES:
+        return None
+    if parsed.scheme != "file":
+        raise StitchError("A generated clip has an unsupported URL scheme.")
+
+    raw = unquote(parsed.path)
+    # A Windows file URI carries its drive as `/C:/...`; drop the leading slash.
+    if len(raw) > 2 and raw[0] == "/" and raw[2] == ":":
+        raw = raw[1:]
+
+    candidate = Path(raw).resolve()
+    root = Path(settings.mock_media_dir).resolve()
+    if not candidate.is_relative_to(root):
+        raise StitchError("A generated clip resolved outside the media directory.")
+    return candidate
 
 
 class StitchService:
@@ -44,6 +81,15 @@ class StitchService:
         return [s for s in rows if s.generation_status == "completed" and s.video_url]
 
     async def _download(self, url: str, destination: Path) -> None:
+        local = _local_source(url)
+        if local is not None:
+            if not local.is_file():
+                raise StitchError("A generated clip could not be found.")
+            if local.stat().st_size > MAX_CLIP_BYTES:
+                raise StitchError("A generated clip exceeded the size limit.")
+            shutil.copyfile(local, destination)
+            return
+
         async with httpx.AsyncClient(timeout=DOWNLOAD_TIMEOUT, follow_redirects=True) as client:
             async with client.stream("GET", url) as response:
                 if response.status_code >= 400:
