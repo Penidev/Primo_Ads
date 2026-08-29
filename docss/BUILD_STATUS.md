@@ -2,27 +2,48 @@
 
 Snapshot of what exists in the repository, how it was verified, and what is left.
 
-## Verification method (important)
+## Verification status
 
-Docker Desktop would not start on the dev machine during this session, so **nothing has been run against a live Postgres/Redis locally**. Everything below was verified statically.
+**CI is green end to end.** Docker Desktop would not start on the dev machine, so GitHub Actions supplies the Postgres (pgvector) and Redis that local Docker could not. Every step has now executed against real services.
 
-**A CI pipeline is written** (`.github/workflows/ci.yml`) to close that gap. GitHub Actions supplies Postgres (pgvector) and Redis as service containers, so on push it is configured to apply migrations, verify they roll back and re-apply, run the seed script, execute the full test suite including the database-backed files, and assert `/health` reports both dependencies up — all with `PROVIDER_MODE=mock`, needing no API keys or spend.
+Run [33238462599](https://github.com/Penidev/Primo_Ads/actions/runs/33238462599), commit `d14fe25`:
 
-### What has and has not actually run
+| CI step | Result |
+|---|---|
+| Secret scan — gitleaks over full history | pass |
+| Secret scan — working tree, dependency-free | pass |
+| Backend lint (`ruff check`) | pass |
+| Backend formatting (`ruff format --check`) | pass |
+| Migrations applied | pass |
+| Migrations rolled back to base and re-applied | pass |
+| Seed script | pass |
+| Test suite, incl. the DB-backed files | **341 passed** |
+| Live uvicorn, `/health` asserting database and redis up | pass |
+| Frontend type check | pass |
+| Frontend lint | pass |
+| Frontend unit tests | **24 passed** |
+| Frontend production build | pass |
 
-| CI step | Written | Executed |
-|---|---|---|
-| Secret scan | yes | **yes** — `make scan`, clean across 231 files |
-| Backend lint + format check | yes | no (`ruff` not installed locally) |
-| Migrations forward → down → forward | yes | no (needs Postgres) |
-| Seed script | yes | no (needs Postgres) |
-| Test suite incl. DB-backed files | yes | no (`pytest` not installed) |
-| Live uvicorn + `/health` assertion | yes | no (deps not installed) |
-| Frontend types, lint, test, build | yes | **yes** — all four green locally |
+All of it runs with `PROVIDER_MODE=mock`: no API keys, no provider spend.
 
-The workflow file itself has only had a structural YAML check. **Its steps have never executed**, so any could fail on first run. Treat the pipeline as unverified configuration until a run goes green.
+### What the first green run cost
 
-Also note: **the repository currently has zero commits.** Everything is untracked working-tree state, so CI cannot trigger and there is no version-control recovery point.
+Six commits, and every failure was real rather than environmental. Recorded because the pattern is the useful part:
+
+1. **Backend lint: 151 errors.** 125 were one false positive — B008 flagging FastAPI's `Depends()` in argument defaults — fixed by configuring `extend-immutable-calls` rather than disabling the rule. The rest were genuine: unsorted imports, long lines, three `except: pass` blocks that now log, and `(str, Enum)` classes that should be `StrEnum`. The reason none of this had surfaced: `ruff` was declared `>=0.8`, so CI resolved 0.16.5 with rules that had never run here. Now pinned.
+2. **Backend formatting: 43 of 132 files.** Hand-wrapped near 88 columns while `line-length` is 100.
+3. **Seed script: password hashing was completely broken.** `passlib` 1.7.4 (final release, 2020) reads `bcrypt.__about__`, removed in bcrypt 4.1. Against the bcrypt 5.0.0 CI resolved, every hash call raised. Registration, login, MFA recovery codes, password reset, and seeding were all non-functional on a fresh install. Replaced passlib with bcrypt directly, and added SHA-256 pre-hashing so bcrypt's 72-byte ceiling cannot silently make two long passphrases interchangeable.
+4. **Test suite: 7 of 341 failed.** All test bugs. Six inserted rows the seed had already created, so the helpers now upsert — which is also the realistic condition. The seventh ordered ledger rows by `created_at`, but Postgres `now()` is the *transaction* timestamp, so rows written together share it and the order is arbitrary. Fixing it exposed a test passing for the wrong reason: it asserted the credit-ratio fallback of 0.50 while the seed writes exactly 0.50, so the fallback was never exercised.
+5. **Health check: the assertion was wrong, not the endpoint.** The server returned `200 OK` while the step failed, because `grep '"database": "up"'` cannot match compact JSON and the flags are nested under `services`. Now a `jq` filter that also checks the overall `status` field the old version ignored entirely.
+
+The one thing that worked first time was the part most likely to be a production trap: migrations rolling back to base and re-applying cleanly.
+
+### Still not verified
+
+- **No provider has ever been called for real.** The adapter interfaces are exercised; the live HTTP contracts are not.
+- **No end-to-end run through the UI.** Backend endpoints and frontend build are verified separately, never together against a running stack.
+- **Celery workers are not exercised in CI.** `poll_project` and the stitching handoff are untested beyond unit level.
+- **No gateway has processed a real test-mode transaction.** Signature verification is unit-tested; the round trip is not.
 
 Static verification performed locally:
 
@@ -47,8 +68,9 @@ Static verification performed locally:
 | Production dependency advisories | `npm audit --omit=dev` | **0 vulnerabilities** |
 | CI workflow structure | stdlib structural check | valid, 3 jobs |
 | No mock references outside the factory | repo-wide grep | confirmed zero |
+| Backend lint + formatting | `ruff check` / `ruff format --check` 0.16.5 | both clean |
 
-**Not yet verified:** live migrations, live endpoint behaviour, database-backed tests, real provider calls. These need `make dev` once Docker runs.
+Note on running `ruff` locally: this machine cannot reach PyPI, so `pip install ruff` fails. The standalone binary does download from GitHub releases, which is what made local iteration possible instead of pushing to CI for each fix.
 
 ---
 
@@ -200,7 +222,7 @@ Next.js 16 App Router (Turbopack), React 19, TypeScript, Tailwind. Route groups:
 
 ## Test suite
 
-Written and compiling; **execution pending Docker** for the DB-backed ones.
+**341 passing in CI**, including both database-backed files against real Postgres.
 
 | File | Covers | Needs DB |
 |------|--------|----------|
@@ -225,9 +247,12 @@ Written and compiling; **execution pending Docker** for the DB-backed ones.
 
 ## What remains
 
-**Blocked on Docker**
-- Run migrations, hit `/health`, seed, and execute the DB-backed tests (spec Task 5).
-- End-to-end smoke test of the full flow.
+**Was blocked on Docker, now covered by CI**
+- Migrations, reversibility, seed, `/health`, and the DB-backed tests all run on every push (spec Task 5). Local Docker is still worth fixing for fast iteration, but it is no longer a correctness gap.
+
+**Still genuinely outstanding**
+- End-to-end smoke test of the full brief → script → assets → video → export flow against a running stack.
+- Celery worker paths (`poll_project`, stitching handoff) exercised in CI.
 
 **Needs API keys**
 - `GEMINI_API_KEY` for script generation; `FAL_KEY` for video and image models.
