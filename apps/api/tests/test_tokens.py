@@ -88,3 +88,35 @@ class TestPasswords:
     def test_strength_rules(self, password, expected_ok):
         errors = validate_password_strength(password)
         assert (errors == []) is expected_ok
+
+    # --- bcrypt's 72-byte limit -------------------------------------------
+    # bcrypt ignores input past 72 bytes. Without SHA-256 pre-hashing, any two
+    # passwords sharing a 72-byte prefix would be interchangeable, and bcrypt
+    # 5.x raises outright on longer input. These pin both behaviours.
+
+    def test_password_longer_than_72_bytes_round_trips(self):
+        long_password = "a" * 100 + "1"
+        hashed = hash_password(long_password)
+        assert verify_password(long_password, hashed) is True
+
+    def test_passwords_sharing_a_72_byte_prefix_are_distinguished(self):
+        base = "x" * 72
+        first = base + "aaa1"
+        second = base + "bbb2"
+        hashed = hash_password(first)
+        assert verify_password(first, hashed) is True
+        assert verify_password(second, hashed) is False
+
+    def test_multibyte_password_round_trips(self):
+        # 40 emoji is 160 UTF-8 bytes, well past the bcrypt ceiling.
+        password = "🔒" * 40 + "1a"
+        hashed = hash_password(password)
+        assert verify_password(password, hashed) is True
+
+    def test_verify_returns_false_for_malformed_hash(self):
+        # A corrupt stored hash must fail closed, not raise.
+        assert verify_password("anything 1", "not-a-bcrypt-hash") is False
+        assert verify_password("anything 1", "") is False
+
+    def test_hash_is_bcrypt_formatted(self):
+        assert hash_password("correct horse 9").startswith("$2b$12$")

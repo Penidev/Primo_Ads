@@ -16,7 +16,9 @@ dependencies = [
     "redis>=5.2",
     "httpx>=0.28",
     "python-jose[cryptography]>=3.3",
-    "passlib[bcrypt]>=1.7",
+    # bcrypt directly, not via passlib: passlib's last release (2020) reads
+    # `bcrypt.__about__`, removed in bcrypt 4.1, so it breaks on bcrypt 5.x.
+    "bcrypt>=4.1",
     "boto3>=1.35",
     "pgvector>=0.3",
     "python-multipart>=0.0.12",
