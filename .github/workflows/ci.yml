@@ -136,16 +136,22 @@ jobs:
         working-directory: apps/api
         run: |
           uvicorn app.main:app --host 127.0.0.1 --port 8000 &
+          server_pid=$!
           for attempt in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:8000/health > /tmp/health.json; then
+            if curl -fsS http://127.0.0.1:8000/health -o /tmp/health.json; then
               break
             fi
             sleep 2
           done
           cat /tmp/health.json
-          # Fail unless both dependencies report healthy.
-          grep -q '"database": "up"' /tmp/health.json
-          grep -q '"redis": "up"' /tmp/health.json
+          # Parsed, not grepped. The response is compact JSON with no space
+          # after the colons, and the dependency flags are nested under
+          # "services", so text matching is both formatting-dependent and
+          # structure-blind. `jq -e` exits non-zero when the filter is false.
+          jq -e '.status == "ok"
+                 and .services.database == "up"
+                 and .services.redis == "up"' /tmp/health.json
+          kill "$server_pid" || true
 
   frontend:
     name: Frontend (lint, types, test, build)
