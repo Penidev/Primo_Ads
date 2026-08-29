@@ -17,7 +17,7 @@ from sqlalchemy import select
 
 from app.adapters.factory import get_storage_adapter
 from app.db.session import AsyncSessionLocal
-from app.models import Project, Scene
+from app.models import Project
 from app.services.stitch_service import StitchError, StitchService
 from app.services.video_service import VideoService
 
@@ -84,24 +84,14 @@ async def _reset_stuck(project_id: uuid.UUID) -> int:
     """Resubmit scenes the provider dropped, so a project can self-heal."""
     async with AsyncSessionLocal() as db:
         project = await db.scalar(select(Project).where(Project.id == project_id))
-        if project is None or not project.selected_model_slug:
+        if project is None:
             return 0
 
-        pending = list(
-            await db.scalars(
-                select(Scene).where(
-                    Scene.project_id == project_id,
-                    Scene.generation_status == "pending",
-                )
-            )
-        )
-        if not pending:
-            return 0
-
-        # start_generation only charges for scenes that are not complete, and
-        # retries of an already-charged scene are covered by the original charge.
-        await VideoService(db).start_generation(project, project.selected_model_slug)
-        return len(pending)
+        # Must not go through `start_generation`: that charges for every scene
+        # which is not already completed, so retrying an already-paid scene
+        # through it would bill the user a second time. `resubmit_stalled` is
+        # the non-charging path.
+        return await VideoService(db).resubmit_stalled(project)
 
 
 @shared_task(name="video.retry_pending_scenes")

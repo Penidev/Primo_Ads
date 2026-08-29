@@ -211,12 +211,71 @@ class VideoService:
                 await self._close_job(scene, "failed")
                 await self._refund_scene(scene)
             else:
-                # Leave as generating so the worker can resubmit on next pass.
+                # Attempts remain, so park it as pending. `resubmit_stalled`
+                # picks it up on the next refresh — nothing else does, and a
+                # scene left here would never be retried, never reach
+                # MAX_ATTEMPTS, and therefore never be refunded.
                 scene.generation_status = "pending"
                 scene.error_message = result.error_message
 
         await self.db.commit()
         return scene
+
+    async def resubmit_stalled(self, project: Project) -> int:
+        """Resubmit scenes that failed a poll but still have attempts left.
+
+        Called from `refresh_project`, so recovery happens on any status read
+        rather than depending on a separate scheduled task. Returns the number
+        resubmitted.
+        """
+        if not project.selected_model_slug:
+            return 0
+        scenes = await self._scenes(project.id)
+        retryable = [
+            s
+            for s in scenes
+            if s.generation_status == "pending" and (s.generation_attempts or 0) < MAX_ATTEMPTS
+        ]
+        if not retryable:
+            return 0
+
+        model = await self._model(project.selected_model_slug)
+        for scene in retryable:
+            await self._resubmit_scene(project, scene, model)
+        await self.db.commit()
+        return len(retryable)
+
+    async def _resubmit_scene(self, project: Project, scene: Scene, model: VideoModel) -> None:
+        """Retry an already-paid scene after a transient provider failure.
+
+        Deliberately does not charge and does not open a new `GenerationJob`.
+        The original charge is recorded on the existing job row, and the refund
+        path selects the most recent job for the scene — so adding a second,
+        zero-charge row here would make a later refund pay out nothing.
+        """
+        adapter = get_video_adapter(model.provider or "")
+        config = self._build_config(project, scene, model)
+
+        scene.compiled_prompt = config.prompt
+        scene.generation_attempts = (scene.generation_attempts or 0) + 1
+
+        try:
+            submission = await adapter.submit(config)
+        except VideoProviderError as exc:
+            # Submission itself failing counts as the attempt being spent.
+            if (scene.generation_attempts or 0) >= MAX_ATTEMPTS:
+                scene.generation_status = "failed"
+                scene.error_message = str(exc)
+                await self._close_job(scene, "failed")
+                await self._refund_scene(scene)
+            else:
+                scene.generation_status = "pending"
+                scene.error_message = str(exc)
+            return
+
+        scene.generation_status = "generating"
+        scene.generation_job_id = submission.provider_job_id
+        scene.error_message = None
 
     async def _close_job(self, scene: Scene, status: str) -> None:
         job = await self.db.scalar(
@@ -282,11 +341,16 @@ class VideoService:
         return scene
 
     async def refresh_project(self, project: Project) -> list[Scene]:
-        """Poll all in-flight scenes and advance the project state."""
+        """Poll all in-flight scenes, retry stalled ones, advance project state."""
         scenes = await self._scenes(project.id)
         for scene in scenes:
             if scene.generation_status == "generating":
                 await self.poll_scene(scene)
+
+        # Recover scenes a poll parked as pending. Without this a single
+        # transient provider failure strands the project forever and silently
+        # keeps the user's credits.
+        await self.resubmit_stalled(project)
 
         scenes = await self._scenes(project.id)
         statuses = {s.generation_status for s in scenes}
