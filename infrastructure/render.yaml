@@ -1,0 +1,133 @@
+# Backend blueprint: API + Celery worker + Redis.
+#
+# Render is used here because the backend needs two things a serverless platform
+# cannot give it: a long-lived worker process consuming a Celery queue, and
+# ffmpeg with real CPU and scratch disk for stitching. Nothing in this file is
+# Render-specific beyond the schema — the same image and the same environment
+# variables run on Railway, Fly.io, or a plain VPS with docker compose.
+#
+# Postgres is not declared here. It lives on Supabase, so the two DSNs below are
+# supplied as secrets rather than provisioned by this blueprint.
+#
+# Every value marked `sync: false` must be set in the dashboard. They are
+# deliberately not in this file: it is committed to a public repository.
+
+services:
+  # ---------------------------------------------------------------- API
+  - type: web
+    name: primo-api
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
+    # Defaults to the `production` target: no pytest, no ruff, no compilers.
+    plan: starter
+    healthCheckPath: /health
+    # Migrations run before the new version receives traffic, so a deploy either
+    # has its schema or does not start. Uses MIGRATION_DATABASE_URL (session
+    # mode) because Alembic needs session-level behaviour the transaction pooler
+    # does not provide.
+    preDeployCommand: alembic upgrade head
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      # Refused at startup when ENVIRONMENT=production, but set explicitly so
+      # nobody has to infer it.
+      - key: PROVIDER_MODE
+        value: live
+      # Vercel edge + Render's load balancer. Rate limiting counts back from the
+      # right of X-Forwarded-For by this many hops. Verify against a real request
+      # before trusting it: too high lets a caller forge their own rate-limit
+      # bucket.
+      - key: TRUSTED_PROXY_COUNT
+        value: "2"
+      - key: DB_BEHIND_TRANSACTION_POOLER
+        value: "true"
+      - key: DB_REQUIRE_SSL
+        value: "true"
+      - key: REDIS_URL
+        fromService:
+          name: primo-redis
+          type: redis
+          property: connectionString
+      # --- secrets, set in the dashboard ---
+      - key: DATABASE_URL # Supabase pooler, port 6543
+        sync: false
+      - key: MIGRATION_DATABASE_URL # Supabase session mode, port 5432
+        sync: false
+      - key: JWT_SECRET # openssl rand -base64 48
+        sync: false
+      - key: FRONTEND_URL # https://<your-vercel-domain>  (sets CORS origin)
+        sync: false
+      - key: API_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FAL_KEY
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_S3_BUCKET
+        sync: false
+      - key: AWS_REGION
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: POSTHOG_API_KEY
+        sync: false
+
+  # ------------------------------------------------------------- Worker
+  # Same image, different command. One image means the worker cannot drift from
+  # the API — it needs the identical service layer and the identical ffmpeg.
+  - type: worker
+    name: primo-worker
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
+    plan: starter
+    dockerCommand: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: PROVIDER_MODE
+        value: live
+      - key: DB_BEHIND_TRANSACTION_POOLER
+        value: "true"
+      - key: DB_REQUIRE_SSL
+        value: "true"
+      - key: REDIS_URL
+        fromService:
+          name: primo-redis
+          type: redis
+          property: connectionString
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FAL_KEY
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_S3_BUCKET
+        sync: false
+      - key: AWS_REGION
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+
+  # -------------------------------------------------------------- Redis
+  # Celery broker and the rate-limit / password-reset-token store.
+  #
+  # `ipAllowList: []` means no public ingress: only the services above, over the
+  # private network. Redis holds reset tokens and session families, so it must
+  # never be reachable from the internet.
+  - type: redis
+    name: primo-redis
+    plan: starter
+    maxmemoryPolicy: noeviction
+    ipAllowList: []

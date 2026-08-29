@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { buildCsp, createNonce } from "@/lib/csp";
 
 /**
  * Route gate for authenticated areas.
@@ -47,14 +48,45 @@ export function proxy(request: NextRequest) {
     const login = new URL("/login", request.url);
     // Preserve the destination so the user lands where they intended.
     login.searchParams.set("next", `${pathname}${search}`);
-    return NextResponse.redirect(login);
+    return withCsp(NextResponse.redirect(login));
   }
 
   if (AUTH_PAGES.includes(pathname) && hasSession) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return withCsp(NextResponse.redirect(new URL("/dashboard", request.url)));
   }
 
-  return NextResponse.next();
+  // The nonce has to reach Next itself, not just the browser: Next reads it from
+  // the *request* CSP header and stamps it onto the script tags it generates.
+  // Setting the response header alone would produce a policy that blocks the
+  // framework's own hydration scripts.
+  const nonce = createNonce();
+  const csp = buildCsp({ nonce, isDevelopment: process.env.NODE_ENV !== "production" });
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", csp);
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set("Content-Security-Policy", csp);
+  return response;
+}
+
+/**
+ * CSP for responses that never reach the app, so no nonce is needed.
+ *
+ * A redirect carries no scripts, but it does carry a Location header, and a
+ * policy is still worth sending so the directives that are not script-related
+ * (`frame-ancestors`, `form-action`) apply to anything a client renders.
+ */
+function withCsp(response: NextResponse): NextResponse {
+  response.headers.set(
+    "Content-Security-Policy",
+    buildCsp({
+      nonce: createNonce(),
+      isDevelopment: process.env.NODE_ENV !== "production",
+    })
+  );
+  return response;
 }
 
 export const config = {

@@ -1,3 +1,13 @@
+[build-system]
+# Declared explicitly so `pip install .` in the Docker build resolves the same
+# backend everywhere, rather than relying on pip's legacy fallback.
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+# `app*` so subpackages (api, services, adapters, db.migrations) are included.
+include = ["app*"]
+
 [project]
 name = "primo-api"
 version = "0.1.0"

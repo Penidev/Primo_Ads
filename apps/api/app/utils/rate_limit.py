@@ -8,6 +8,7 @@ Fails open on Redis errors: availability of the product is preferred over hard
 denial, and the ledger/auth layers remain the authoritative protections.
 """
 
+import ipaddress
 import time
 from dataclasses import dataclass
 
@@ -35,19 +36,49 @@ CHECKOUT_LIMIT = RateLimit(requests=10, window_seconds=300, bucket="checkout")
 PASSWORD_RESET_LIMIT = RateLimit(requests=3, window_seconds=3600, bucket="password_reset")
 
 
-def _client_ip(request: Request) -> str:
-    """Best-effort client IP.
-
-    Only the left-most X-Forwarded-For entry is considered, and only because the
-    app is expected to sit behind a trusted proxy that sets it. Falls back to the
-    socket address.
-    """
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        first = forwarded.split(",")[0].strip()
-        if first:
-            return first
+def _socket_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
+
+
+def _client_ip(request: Request) -> str:
+    """Resolve the client IP against the configured trusted-proxy depth.
+
+    X-Forwarded-For is built by *appending*: each proxy adds the peer it received
+    from. So the left-most entry is whatever the caller sent, and is entirely
+    attacker-controlled. Reading it — which this function used to do — lets a
+    caller present a fresh fake address on every request and bypass IP rate
+    limiting completely, which matters most on the endpoints that have no user
+    id to bucket by yet: login, registration, and password reset.
+
+    The real client is therefore counted from the right, skipping exactly the
+    proxies we operate:
+
+        client sends nothing   ->  "C, P1"              depth 2 -> C
+        client forges an entry ->  "9.9.9.9, C, P1"     depth 2 -> C
+
+    A chain shorter than the configured depth means the request did not traverse
+    the expected proxies, so nothing in the header is trustworthy and the socket
+    peer is used instead. Same when the value is not a valid IP, which also stops
+    a malformed header from being written into a Redis key.
+    """
+    depth = settings.trusted_proxy_count
+    if depth <= 0:
+        return _socket_ip(request)
+
+    forwarded = request.headers.get("x-forwarded-for")
+    if not forwarded:
+        return _socket_ip(request)
+
+    chain = [part.strip() for part in forwarded.split(",") if part.strip()]
+    if len(chain) < depth:
+        return _socket_ip(request)
+
+    candidate = chain[len(chain) - depth]
+    try:
+        ipaddress.ip_address(candidate)
+    except ValueError:
+        return _socket_ip(request)
+    return candidate
 
 
 def _identity(request: Request) -> str:

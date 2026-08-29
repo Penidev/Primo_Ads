@@ -28,6 +28,9 @@ services:
   api:
     build:
       context: ../apps/api
+      # `dev` adds pytest and ruff. The default target is `production`, which
+      # deliberately has neither.
+      target: dev
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
@@ -53,6 +56,7 @@ services:
   worker:
     build:
       context: ../apps/api
+      target: dev
     command: celery -A app.workers.celery_app worker --loglevel=info
     environment:
       ENVIRONMENT: development
@@ -76,8 +80,11 @@ services:
     ports:
       - "3000:3000"
     environment:
+      # Server-side only. The browser never addresses the API directly; it goes
+      # through the /api/backend rewrite, which is what keeps auth cookies
+      # first-party. There is deliberately no NEXT_PUBLIC_ equivalent, because
+      # anything NEXT_PUBLIC_ is compiled into the client bundle.
       API_INTERNAL_URL: http://api:8000
-      NEXT_PUBLIC_API_URL: http://localhost:8000
     volumes:
       - ../apps/web:/app
       - /app/node_modules
