@@ -28,9 +28,26 @@ jobs:
           fetch-depth: 0
 
       - name: Scan git history for secrets
-        uses: gitleaks/gitleaks-action@v2
+        # gitleaks is invoked directly rather than through gitleaks-action.
+        # The action derives its scan range from the push event, so rewriting
+        # history makes it compute `<root-commit>^..<head>` and abort with
+        # "unknown revision" — a structural failure that reads like a finding
+        # and leaves the history unscanned. Scanning the whole history every
+        # run is deterministic and immune to force-pushes.
+        #
+        # Version pinned for the same reason ruff is: a scanner that silently
+        # changes its rule set can fail on an unchanged repository.
+        #
+        # --redact so a real finding never prints the secret into the logs of
+        # what is a public repository.
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_VERSION: 8.24.3
+        run: |
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /tmp gitleaks
+          /tmp/gitleaks version
+          /tmp/gitleaks detect --source=. --redact --verbose --exit-code=1
 
       - uses: actions/setup-python@v5
         with:
